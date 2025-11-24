@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PHTicket</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/logo/chat-icon.png">
+    <link rel="icon" href="/assets/logo/favicon.ico" sizes="any">
+    <link rel="shortcut icon" href="/assets/logo/chat-icon.png">
+    <link rel="apple-touch-icon" href="/assets/logo/chat-icon.png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <div class="container-fluid vh-100">
+        <div class="row h-100">
+            <!-- Menu Lateral Esquerdo -->
+      <div class="col-md-2 bg-dark text-white p-3 d-flex flex-column">
+        <div class="d-flex flex-column h-100">
+                    <h3 class="text-center">Menu</h3>
+                    <hr>
+                    <ul class="nav nav-pills flex-column">
+                    <li class="nav-item" data-permission-module="dashboard">
+                        <a href="#" class="nav-link text-white active" id="menu-painel">
+                            <i class="bi bi-speedometer2 me-2"></i>
+                            Painel
+                        </a>
+                    </li>
+                    <li class="nav-item" data-permission-module="connections">
+                        <a href="#" class="nav-link text-white" id="menu-conexoes">
+                            <i class="bi bi-hdd-stack me-2"></i>
+                            Conexões
+                        </a>
+                    </li>
+                    <li data-permission-module="tickets">
+                        <a href="#" class="nav-link text-white" id="menu-ingressos">
+                            <i class="bi bi-ticket-perforated me-2"></i>
+                            Atendimentos
+                        </a>
+                    </li>
+                    <li data-permission-module="queues">
+                        <a href="#" class="nav-link text-white" id="menu-filas">
+                            <i class="bi bi-diagram-3 me-2"></i>
+                            Filas
+                        </a>
+                    </li>
+                    <li data-permission-module="users">
+                        <a href="#" class="nav-link text-white" id="menu-usuarios">
+                            <i class="bi bi-people-fill me-2"></i>
+                            Usuários
+                        </a>
+                    </li>
+          <li style="display: none;">
+            <a href="#" class="nav-link text-white" id="menu-contatos">
+              <i class="bi bi-person-rolodex me-2"></i>
+              Contatos
+            </a>
+          </li>
+                    <li data-permission-module="quick_responses">
+                        <a href="#" class="nav-link text-white" id="menu-respostas-rapidas">
+                            <i class="bi bi-fast-forward me-2"></i>
+                            Respostas Rápidas
+                        </a>
+                    </li>
+                    <li data-permission-module="internal_chat">
+                        <a href="#" class="nav-link text-white" id="menu-chat-interno">
+                            <i class="bi bi-chat-dots me-2"></i>
+                            Chat Interno
+                        </a>
+                    </li>
+                    <li class="nav-item" id="menu-permissoes-item" style="display: none;" data-permission-module="permissions">
+                        <a href="permissions.html" class="nav-link text-white" id="menu-permissoes">
+                            <i class="bi bi-shield-lock me-2"></i>
+                            Permissões
+                        </a>
+                    </li>
+                    <li class="nav-item" id="menu-configuracoes-item" style="display: none;">
+                        <a href="#" class="nav-link text-white" id="menu-configuracoes" data-bs-toggle="modal" data-bs-target="#systemSettingsModal">
+                            <i class="bi bi-gear-fill me-2"></i>
+                            Configurações
+                        </a>
+                    </li>
+                    </ul>
+                    <div class="mt-auto pb-2">
+            <hr>
+            <button id="logout-button" class="btn btn-danger w-100">Sair <i class="bi bi-box-arrow-right"></i></button>
+            <div class="menu-footer text-center mt-3 small text-secondary">
+              <div class="fw-semibold">v1.0.0</div>
+              <div class="mt-1">
+                <a href="mailto:suporte.phticket@gmail.com" class="link-light text-decoration-none">suporte.phticket@gmail.com</a>
+              </div>
+              <div class="mt-2">
+                <a href="https://web.whatsapp.com/send?phone=5582981378278" target="_blank" rel="noopener" class="text-success" title="Suporte via WhatsApp">
+                  <i class="bi bi-whatsapp" style="font-size: 1.25rem;"></i>
+                </a>
+              </div>
+            </div>
+          </div>
+                </div>
+            </div>
+              <!-- Modal de confirmação reutilizável (substitui window.confirm) -->
+              <div class="modal fade" id="app-confirm-modal" tabindex="-1" aria-labelledby="appConfirmModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-sm modal-dialog-centered">
+                  <div class="modal-content">
+                    <div class="modal-header">
+                      <h5 class="modal-title" id="appConfirmModalLabel">Confirmação</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                      <p id="app-confirm-modal-message">Tem certeza?</p>
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-secondary" id="app-confirm-cancel" data-bs-dismiss="modal">Cancelar</button>
+                      <button type="button" class="btn btn-primary" id="app-confirm-ok">OK</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            <!-- Conteúdo Principal -->
+            <div class="col-md-10 p-6">
+        <header id="main-header" class="d-flex justify-content-between align-items-center mb-4">
+          <h1 id="main-title">Painel Principal</h1>
+          <!-- Badge de status do Socket.IO (inserido pelo JS, id usado por dashboard.js) -->
+          <div class="ms-3">
+            <span id="socket-status-badge" class="badge bg-success">Conectado</span>
+          </div>
+        </header>
+                <main id="main-content-area">
+                    <!-- Conteúdo do Painel -->
+                    <div id="painel-content">
+                        <div class="row mb-4">
+              <div class="col-md-4">
+                <label class="form-label">Filtrar por Data</label>
+                <div class="row g-2">
+                  <div class="col-6">
+                    <input type="date" id="filter-date-start" class="form-control" placeholder="De">
+                  </div>
+                  <div class="col-6">
+                    <input type="date" id="filter-date-end" class="form-control" placeholder="Até">
+                  </div>
+                </div>
+                <small class="text-muted">Defina a data inicial e final (opcional).</small>
+              </div>
+                            <div class="col-md-4">
+                                <label for="filter-user" class="form-label">Filtrar por Usuário</label>
+                                <select id="filter-user" class="form-select">
+                                    <option value="">Todos os Usuários</option>
+                                    <!-- Usuários serão preenchidos aqui -->
+                                </select>
+                            </div>
+                            <div class="col-md-4 d-flex align-items-end">
+                                <button id="apply-filters-button" class="btn btn-primary me-2">Aplicar</button>
+                                <button id="clear-filters-button" class="btn btn-secondary me-2">Limpar</button>
+                                <div class="dropdown">
+                                    <button class="btn btn-success dropdown-toggle" type="button" id="export-button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="bi bi-download me-1"></i> Exportar
+                                    </button>
+                                    <ul class="dropdown-menu" aria-labelledby="export-button">
+                                        <li><a class="dropdown-item" href="#" id="export-pdf-button">Baixar Relatório em PDF</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <div class="card text-white bg-primary mb-3">
+                                    <div class="card-header">Atendimento</div>
+                                    <div class="card-body">
+                                        <h5 class="card-title" id="atendimento-count">0</h5>
+                                        <p class="card-text">Tickets em atendimento.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card text-white bg-warning mb-3">
+                                    <div class="card-header">Aguardando</div>
+                                    <div class="card-body">
+                                        <h5 class="card-title" id="aguardando-count">0</h5>
+                                        <p class="card-text">Tickets aguardando resposta.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card text-white bg-success mb-3">
+                                    <div class="card-header">Finalizado</div>
+                                    <div class="card-body">
+                                        <h5 class="card-title" id="finalizado-count">0</h5>
+                                        <p class="card-text">Tickets finalizados hoje.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">Tickets Atendidos Hoje</div>
+                                    <div class="card-body">
+                                        <canvas id="ticketsChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Conteúdo de Conexões (inicialmente oculto) -->
+                    <div id="conexoes-content" class="d-none">
+                        <div class="d-flex justify-content-end align-items-center mb-4">
+                            <button class="btn btn-success" id="add-whatsapp-btn" data-bs-toggle="modal" data-bs-target="#addWhatsappModal"><i class="bi bi-whatsapp me-2"></i>Adicionar WhatsApp</button>
+                        </div>
+                        <div class="card">
+                            <div class="card-body">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Nome</th>
+                                            <th>Status</th>
+                                            <th>Última Atualização</th>
+                                            <th>Padrão</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Linhas de conexão serão adicionadas aqui via JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Conteúdo de Filas (inicialmente oculto) -->
+                    <div id="filas-content" class="d-none">
+                        <div class="row">
+                            <!-- Formulário para Adicionar Nova Fila -->
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        Adicionar Nova Fila
+                                    </div>
+                                    <div class="card-body">
+                                        <form id="add-queue-form">
+                                            <div class="mb-3">
+                                                <label for="add-queue-name" class="form-label">Nome do Departamento</label>
+                                                <input type="text" class="form-control" id="add-queue-name" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="add-queue-color" class="form-label">Cor</label>
+                                                <input type="color" class="form-control form-control-color" id="add-queue-color" value="#563d7c" title="Escolha uma cor">
+                                            </div>
+                                            <button type="submit" class="btn btn-primary w-100">Criar Fila</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Tabela de Filas Existentes -->
+                            <div class="col-md-8">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <table class="table table-striped">
+                                            <thead>
+                                                <tr>
+                                                    <th>Cor</th>
+                                                    <th>Nome</th>
+                                                    <th>Ações</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="queues-table-body">
+                                                <!-- Filas serão inseridas aqui -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Conteúdo de Usuários (inicialmente oculto) -->
+                    <div id="usuarios-content" class="d-none">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+              <div class="btn-group" role="group" style="max-width: 400px;">
+                <button id="user-search-button" class="btn btn-outline-secondary d-flex align-items-center" type="button" title="Pesquisar Usuário">
+                  <i class="bi bi-people-fill me-2"></i>
+                  <span>Pesquisar Usuário</span>
+                </button>
+                <button id="user-search-run" class="btn btn-primary" type="button" title="Abrir pesquisa rápida">
+                  <i class="bi bi-search"></i>
+                </button>
+              </div>
+              <button id="add-user-button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal"><i class="bi bi-plus-circle me-2"></i>ADICIONAR USUÁRIO</button>
+            </div>
+                        <div class="card">
+                            <div class="card-body">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Nome</th>
+                                            <th>E-mail</th>
+                                            <th>Perfil</th>
+                                            <th>Filas</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="users-table-body">
+                                        <!-- Exemplo de linha, será preenchido via JS -->
+                                        <tr>
+                                            <td>Admin</td>
+                                            <td>admin@email.com</td>
+                                            <td><span class="badge bg-info">Administrador</span></td>
+                                            <td></td>
+                                            <td class="user-actions">
+                                                <button class="btn btn-sm btn-info edit-user-btn" title="Editar"><i class="bi bi-pencil"></i></button>
+                                                <button class="btn btn-sm btn-danger delete-user-btn" title="Excluir"><i class="bi bi-trash"></i></button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Conteúdo de Contatos (inicialmente oculto) -->
+                    <div id="contatos-content" class="d-none">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <div class="input-group" style="max-width: 400px;">
+                                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                <input type="text" class="form-control" id="contact-search-input" placeholder="Pesquisar...">
+                            </div>
+                            <button id="add-contact-button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addContactModal"><i class="bi bi-plus-circle me-2"></i>ADICIONAR CONTATO</button>
+                        </div>
+                        <div class="card">
+                            <div class="card-body">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Nome</th>
+                                            <th>Nº WhatsApp</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="contacts-table-body">
+                                        <!-- Contatos serão inseridos aqui -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Conteúdo de Respostas Rápidas (inicialmente oculto) -->
+                    <div id="respostas-rapidas-content" class="d-none">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <div class="input-group" style="max-width: 400px;">
+                                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                <input type="text" class="form-control" id="quick-response-search-input" placeholder="Pesquisar...">
+                            </div>
+                            <button id="add-quick-response-button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addQuickResponseModal"><i class="bi bi-plus-circle me-2"></i>ADICIONAR RESPOSTA RÁPIDA</button>
+                        </div>
+                        <div class="card">
+                            <div class="card-body">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Atalho</th>
+                                            <th>Resposta Rápida</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="quick-responses-table-body">
+                                        <!-- Respostas Rápidas serão inseridas aqui -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chat Interno -->
+                    <div id="chat-interno-content" class="d-none">
+                        <div class="row h-100">
+                            <div class="col-md-3">
+                                <div class="card h-100">
+                                    <div class="card-header">
+                                        <h5 class="mb-2"><i class="bi bi-chat-dots me-2"></i>Conversas</h5>
+                                        <!-- Campo de busca de usuários -->
+                                        <div class="input-group input-group-sm mb-2">
+                                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                            <input type="text" id="search-users-input" class="form-control" placeholder="Buscar usuário...">
+                                        </div>
+                                        <!-- Filtro de status -->
+                                        <div class="btn-group w-100 mb-2" role="group">
+                                            <input type="radio" class="btn-check" name="user-filter" id="filter-all" autocomplete="off">
+                                            <label class="btn btn-outline-primary btn-sm" for="filter-all">Todos</label>
+                                            
+                                            <input type="radio" class="btn-check" name="user-filter" id="filter-online" autocomplete="off" checked>
+                                            <label class="btn btn-outline-success btn-sm" for="filter-online">Online</label>
+                                            
+                                            <input type="radio" class="btn-check" name="user-filter" id="filter-offline" autocomplete="off">
+                                            <label class="btn btn-outline-secondary btn-sm" for="filter-offline">Offline</label>
+                                        </div>
+                                    </div>
+                                    <div class="card-body p-0" style="overflow-y: auto;">
+                                        <!-- Usuários Online -->
+                                        <div id="online-section">
+                                            <div class="px-3 py-2 bg-light border-bottom">
+                                                <small class="text-muted fw-bold">ONLINE</small>
+                                            </div>
+                                            <div id="online-users-list" class="list-group list-group-flush">
+                                                <!-- Lista de usuários online será carregada aqui -->
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Usuários Offline -->
+                                        <div id="offline-section" class="d-none">
+                                            <div class="px-3 py-2 bg-light border-bottom border-top">
+                                                <small class="text-muted fw-bold">OFFLINE</small>
+                                            </div>
+                                            <div id="offline-users-list" class="list-group list-group-flush">
+                                                <!-- Lista de usuários offline será carregada aqui -->
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Todos os Usuários (resultados da busca) -->
+                                        <div id="all-users-section" class="d-none">
+                                            <div class="px-3 py-2 bg-light border-bottom border-top">
+                                                <small class="text-muted fw-bold">RESULTADOS DA BUSCA</small>
+                                            </div>
+                                            <div id="all-users-list" class="list-group list-group-flush">
+                                                <!-- Lista de todos os usuários será carregada aqui -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-9">
+                                <div class="card h-100">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-0" id="chat-header-title">
+                                            <i class="bi bi-chat-dots me-2"></i>Selecione um usuário para conversar
+                                        </h5>
+                                        <div id="chat-status" class="badge bg-secondary">Offline</div>
+                                    </div>
+                                    <div class="card-body d-flex flex-column p-0">
+                                        <div id="chat-messages" class="flex-grow-1 p-3" style="overflow-y: auto; max-height: 600px;">
+                                            <div class="text-center text-muted">
+                                                <i class="bi bi-chat-dots-fill display-1"></i>
+                                                <p>Escolha um usuário na lista ao lado para iniciar uma conversa</p>
+                                            </div>
+                                        </div>
+                                        <div class="border-top p-3">
+                                            <div class="input-group">
+                                                <input type="text" id="internal-chat-message-input" class="form-control" placeholder="Digite sua mensagem..." disabled>
+                                                <button id="internal-send-message-btn" class="btn btn-primary" type="button" disabled>
+                                                    <i class="bi bi-send"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+    <!-- Modal de Edição de Contato -->
+    <div class="modal fade" id="editContactModal" tabindex="-1" aria-labelledby="editContactModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="editContactModalLabel">Editar Contato</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="edit-contact-form">
+                <input type="hidden" id="edit-contact-id">
+                <div class="mb-3">
+                    <label for="edit-contact-name" class="form-label">Nome</label>
+                    <input type="text" class="form-control" id="edit-contact-name" required>
+                </div>
+                <div class="mb-3">
+                    <label for="edit-contact-number" class="form-label">Número do WhatsApp</label>
+                    <input type="text" class="form-control" id="edit-contact-number" placeholder="Ex: 558287654321" required>
+                </div>
+                <div class="mb-3">
+                    <label for="edit-contact-info" class="form-label">Informação Adicional</label>
+                    <textarea class="form-control" id="edit-contact-info" rows="3"></textarea>
+                </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="save-contact-changes-button">Salvar Alterações</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+                    <!-- Conteúdo de Ingressos (inicialmente oculto) -->
+                    <div id="ingressos-content" class="d-none">
+                        <!-- Barra Superior -->
+                        <div class="d-flex justify-content-between align-items-center bg-light p-3 mb-3 border rounded shadow-sm">
+                            <h4 class="m-0 fw-bold d-flex align-items-center">
+                                <i class="bi bi-chat-dots-fill text-primary me-2"></i><span class="text-primary">PH</span><span class="text-danger">Ticket</span>
+                            </h4>
+                            <div class="d-flex align-items-center">
+                <!-- Controle de Tamanho de Fonte: substitui o antigo 'Modo Escuro' -->
+                <div class="dropdown me-4">
+                  <a href="#" class="text-secondary position-relative" id="font-size-dropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Tamanho da Fonte">
+                    <i class="bi bi-text-paragraph fs-5"></i>
+                  </a>
+                  <ul class="dropdown-menu dropdown-menu-end p-2" aria-labelledby="font-size-dropdown" style="min-width: 180px;">
+                    <li><h6 class="dropdown-header">Tamanho da fonte</h6></li>
+                    <li><button class="dropdown-item font-size-option" data-size="14">Pequena</button></li>
+                    <li><button class="dropdown-item font-size-option" data-size="16">Normal</button></li>
+                    <li><button class="dropdown-item font-size-option" data-size="18">Grande</button></li>
+                    <li><button class="dropdown-item font-size-option" data-size="20">Muito grande</button></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><button class="dropdown-item" id="font-size-reset">Restaurar padrão</button></li>
+                  </ul>
+                </div>
+                                <!-- Botão de Notificações como Dropdown -->
+                                <div class="dropdown me-4">
+                                    <a href="#" class="text-secondary position-relative" id="notifications-dropdown" data-bs-toggle="dropdown" aria-expanded="false" title="Notificações">
+                                        <i class="bi bi-chat-dots fs-5"></i>
+                                        <span id="notifications-badge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none"></span>
+                                    </a>
+                                    <ul id="notifications-list" class="dropdown-menu dropdown-menu-end" aria-labelledby="notifications-dropdown">
+                                        <!-- Notificações serão inseridas aqui -->
+                                    </ul>
+                                </div>
+                                <!-- Botão de Perfil como Dropdown -->
+                                <div class="dropdown me-4" id="user-profile-dropdown">
+                                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="profile-dropdown-button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="bi bi-person-fill me-1"></i>
+                                        <span id="profile-username-button">Perfil</span>
+                                    </button>
+                                    <div class="dropdown-menu dropdown-menu-end p-3" style="width: 300px;">
+                      <div class="mb-3">
+                        <label class="form-label fw-bold">Nome</label>
+                        <div class="form-control-plaintext" id="profile-name-display">Carregando...</div>
+                                        </div>
+                    <div class="mb-3">
+                      <label class="form-label fw-bold">E-mail</label>
+                        <div class="form-control-plaintext" id="profile-email-display">Carregando...</div>
+                                        </div>
+                                        <div class="mb-3">
+                      <label class="form-label fw-bold">Filas Habilitadas</label>
+                        <div class="form-control-plaintext" id="profile-queues-display">Carregando...</div>
+                                        </div>
+                      <hr>
+                      <button type="button" class="btn btn-primary w-100" id="change-password-button">
+                        <i class="bi bi-key me-2"></i>Alterar Senha
+                      </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Corpo Principal de Ingressos -->
+                        <div class="row g-0 atendimentos-row" style="height: calc(100vh - 150px);">
+                            <!-- Painel Lateral Esquerdo (Lista de Tickets) -->
+                            <div class="col-md-3 border rounded-start d-flex flex-column bg-light">
+                                <div class="p-1">
+                                    <!-- Parte Superior: Ícones de Navegação -->
+                                    <div class="d-flex justify-content-center mb-3">
+                                        <a href="#" id="nav-contatos" class="btn btn-primary flex-fill me-1" title="Contatos"><i class="bi bi-person-rolodex me-1"></i>Contatos</a>
+                                        <a href="#" id="nav-search" class="btn btn-outline-secondary flex-fill ms-1" title="Buscar Protocolo" data-bs-toggle="modal" data-bs-target="#searchProtocolModal"><i class="bi bi-search me-1"></i>Buscar Protocolo</a>
+                                    </div>
+
+                                    <!-- Parte do Meio: Botão Novo e Filtros -->
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <div class="btn-group">
+                                            <div class="dropdown">
+                                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                                    Filas
+                                                </button>
+                                                <ul class="dropdown-menu" id="ticket-queue-filter-list"></ul>
+                                            </div>
+                                            <a href="#" id="tab-resolvido" class="btn btn-sm btn-outline-secondary ms-2" title="Concluídos"><i class="bi bi-check2-square me-1"></i>Concluídos</a>
+                                        </div>
+                                    </div>
+
+                                    <!-- Parte Inferior: Abas de Status -->
+                                    <div class="d-flex flex-column">
+                                        <a class="btn btn-outline-secondary mb-2" href="#" id="tab-pendente"><i class="bi bi-clock-history me-1"></i>PENDENTE<span id="notification-pendente" class="badge rounded-pill bg-danger d-none ms-2"></span></a>
+                                        <!-- Abas de Status -->
+                      <div class="d-flex" id="inbox-subtabs-container">
+                                            <a class="btn btn-success flex-fill me-1" href="#" id="tab-atendendo"><i class="bi bi-headset me-1"></i>ATENDENDO</a>
+                                            <a class="btn btn-outline-secondary flex-fill ms-1" href="#" id="tab-aguardando"><i class="bi bi-hourglass-split me-1"></i>AGUARDANDO<span id="notification-aguardando" class="badge rounded-pill bg-danger d-none ms-2"></span></a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Lista de Tickets -->
+                                <div id="ticket-list" class="flex-grow-1 overflow-auto">
+                                    <!-- Os tickets serão inseridos aqui via JS -->
+                                </div>
+                                <!-- Mensagem de "Nada aqui" (inicialmente visível) -->
+                                <div id="no-tickets-message" class="flex-grow-1 p-3 text-center text-muted d-flex align-items-center justify-content-center">
+                                    <div >
+                                        <h5>Nenhum ticket aqui!</h5>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Painel Principal Direito (Conversa) -->
+                            <div class="col-md-9 border-top border-bottom border-end rounded-end d-flex flex-column">
+                                <!-- Mensagem inicial -->
+                                <div id="chat-welcome-message" class="d-flex flex-grow-1 align-items-center justify-content-center text-center text-muted">
+                                    <i class="bi bi-chat-square-dots-fill" style="font-size: 4rem;"></i>
+                                    <h4 class="mt-5">Selecione um ticket para começar a conversar.</h4>
+                                </div>
+                                <!-- Área do Chat (oculta) -->
+                                <div id="chat-area" class="d-none flex-grow-1 d-flex flex-column">
+                                    <!-- Cabeçalho do Chat -->
+                                    <div id="chat-header" class="p-2 bg-light border-bottom d-flex justify-content-between align-items-center">
+                                        <div class="d-flex align-items-center">
+                                            <img id="chat-profile-pic" src="" alt="Foto do Contato" class="rounded-circle me-2" width="40" height="40">
+                                            <div>
+                                                <h5 id="chat-contact-name" class="m-0">Nome do Contato</h5>
+                                                <small id="chat-protocol-number" class="text-primary d-none"><i class="bi bi-file-earmark-text me-1"></i><strong>Protocolo:</strong> <span id="protocol-value"></span></small>
+                                                <small id="chat-assigned-user" class="text-muted d-block"></small>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <button id="resolve-ticket-button" class="btn btn-sm btn-success me-1" title="Marcar como Concluído"><i class="bi bi-check-circle-fill me-1"></i>Concluído</button>
+                                            <button id="pendente-ticket-button" class="btn btn-sm btn-secondary me-1" title="Marcar como Pendente"><i class="bi bi-pause-circle-fill me-1"></i>Pendente</button>
+                                            <button id="continuar-ticket-button" class="btn btn-sm btn-outline-primary me-1 d-none" title="Continuar Atendimento"><i class="bi bi-play-circle-fill me-1"></i>Continuar Atendimento</button>
+                                            <button id="transfer-ticket-button" class="btn btn-sm btn-info me-1" title="Transferir Ticket"><i class="bi bi-arrow-right-square-fill me-1"></i>Transferir</button>
+                                            <button id="delete-ticket-button" class="btn btn-sm btn-danger" title="Excluir Ticket" style="display: none;" data-permission-module="delete_tickets"><i class="bi bi-trash-fill me-1"></i>Excluir</button>
+                                        </div>
+                                    </div>
+                                    <!-- Corpo do Chat (Mensagens) -->
+                                    <div id="chat-body" class="flex-grow-1 p-3 overflow-auto">
+                                        <!-- Mensagens serão inseridas aqui -->
+                                    </div>
+                                    <!-- Rodapé do Chat (Input de Mensagem) -->
+                                    <div id="chat-footer" class="p-2 bg-light border-top d-flex align-items-center position-relative">
+                                        <!-- Container para sugestões de respostas rápidas -->
+                                        <div id="quick-response-suggestions" class="list-group position-absolute bottom-100 start-0 w-100 bg-white shadow-lg d-none" style="max-height: 200px; overflow-y: auto; z-index: 1050;">
+                                            <!-- Sugestões serão inseridas aqui via JS -->
+                                        </div>
+                                        <div id="chat-actions-left" class="me-2">
+                                            <button id="emoji-button" class="btn btn-secondary" title="Emojis" data-bs-toggle="popover" data-bs-placement="top"><i class="bi bi-emoji-smile"></i></button>
+                                            <button id="attach-file-button" class="btn btn-secondary" title="Anexar Arquivo"><i class="bi bi-paperclip"></i></button>
+                                            <input type="file" id="file-input" class="d-none">
+                                            <button id="record-audio-button" class="btn btn-secondary" title="Gravar Áudio"><i class="bi bi-mic-fill"></i></button>
+                                        </div>
+                                        <form id="chat-form" class="d-flex flex-grow-1">
+                                          <textarea id="chat-message-input" class="form-control me-2" placeholder="Digite sua mensagem..." autocomplete="off" rows="2" style="resize: none; overflow-y: auto; max-height: 80px;"></textarea>
+                                          <button type="submit" class="btn btn-primary"><i class="bi bi-send-fill"></i></button>
+                                        </form>
+                                        <div id="chat-actions-right" class="ms-2"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Adicionar WhatsApp -->
+    <div class="modal fade" id="addWhatsappModal" tabindex="-1" aria-labelledby="addWhatsappModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addWhatsappModalLabel">Adicionar WhatsApp</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form>
+                        <div class="mb-3">
+                            <label for="add-whatsapp-name" class="form-label">Nome</label>
+                            <input type="text" class="form-control" id="add-whatsapp-name" placeholder="Nome da conexão">
+                        </div>
+                        <div class="mb-3 form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="add-whatsapp-default" checked>
+                            <label class="form-check-label" for="add-whatsapp-default">Padrão</label>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="add-whatsapp-start-time" class="form-label">Horário de Início</label>
+                                <input type="time" class="form-control" id="add-whatsapp-start-time" placeholder="00:00">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="add-whatsapp-end-time" class="form-label">Horário de Término</label>
+                                <input type="time" class="form-control" id="add-whatsapp-end-time" placeholder="23:59">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="add-whatsapp-initial-message" class="form-label">Mensagem inicial</label>
+                            <textarea class="form-control" id="add-whatsapp-initial-message" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="add-whatsapp-farewell-message" class="form-label">Mensagem de despedida</label>
+                            <textarea class="form-control" id="add-whatsapp-farewell-message" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Filas</label>
+                            <div id="add-whatsapp-queues-container"></div>
+                        </div>
+                        <div class="modal-footer d-flex justify-content-between">
+                            <button type="button" class="btn btn-danger" data-bs-dismiss="modal">CANCELAR</button>
+                            <button type="submit" class="btn btn-primary" id="add-whatsapp-button">ADICIONAR</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Edição de WhatsApp -->
+    <div class="modal fade" id="editWhatsappModal" tabindex="-1" aria-labelledby="editWhatsappModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editWhatsappModalLabel">Editar WhatsApp</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="edit-whatsapp-form">
+                        <input type="hidden" id="edit-whatsapp-id">
+                        <div class="mb-3">
+                            <label for="edit-whatsapp-name" class="form-label">Nome</label>
+                            <input type="text" class="form-control" id="edit-whatsapp-name">
+                        </div>
+                        <div class="mb-3 form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="edit-whatsapp-default">
+                            <label class="form-check-label" for="edit-whatsapp-default">Padrão</label>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="edit-whatsapp-start-time" class="form-label">Horário de Início</label>
+                                <input type="time" class="form-control" id="edit-whatsapp-start-time" placeholder="00:00">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="edit-whatsapp-end-time" class="form-label">Horário de Término</label>
+                                <input type="time" class="form-control" id="edit-whatsapp-end-time" placeholder="23:59">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit-whatsapp-initial-message" class="form-label">Mensagem inicial</label>
+                            <textarea class="form-control" id="edit-whatsapp-initial-message" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit-whatsapp-farewell-message" class="form-label">Mensagem de despedida</label>
+                            <textarea class="form-control" id="edit-whatsapp-farewell-message" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Filas</label>
+                            <div id="edit-whatsapp-queues-container"></div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">CANCELAR</button>
+                    <button type="button" class="btn btn-primary" id="save-edit-button">SALVAR</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação de Exclusão -->
+    <div class="modal fade" id="deleteConnectionModal" tabindex="-1" aria-labelledby="deleteConnectionModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="deleteConnectionModalLabel">Confirmar Exclusão</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            Tem certeza de que deseja excluir esta conexão? Esta ação não pode ser desfeita.
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-danger" id="confirm-delete-button">Excluir</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de QR Code -->
+    <div class="modal fade" id="qrCodeModal" tabindex="-1" aria-labelledby="qrCodeModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="qrCodeModalLabel">Conectar WhatsApp</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body text-center">
+            <p>Escaneie o QR Code com o seu celular para conectar.</p>
+            <div id="qrcode-container" class="d-flex justify-content-center align-items-center" style="min-height: 264px;">
+              <!-- QR Code será renderizado aqui -->
+              <div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div>
+              <p id="qr-countdown" class="text-muted small mt-2"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Visualização de Imagem -->
+    <div class="modal fade" id="image-viewer-modal" tabindex="-1" aria-labelledby="imageViewerModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="imageViewerModalLabel">Visualizador de Imagem</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body text-center">
+            <img id="image-viewer-src" src="" class="img-fluid" alt="Imagem maximizada">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Edição de Fila -->
+    <div class="modal fade" id="editQueueModal" tabindex="-1" aria-labelledby="editQueueModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="editQueueModalLabel">Editar Fila</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="edit-queue-form">
+                <input type="hidden" id="edit-queue-id">
+                <div class="mb-3">
+                    <label for="edit-queue-name" class="form-label">Nome do Departamento</label>
+                    <input type="text" class="form-control" id="edit-queue-name" required>
+                </div>
+                <div class="mb-3">
+                    <label for="edit-queue-color" class="form-label">Cor</label>
+                    <input type="color" class="form-control form-control-color" id="edit-queue-color" title="Escolha uma cor">
+                </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="save-queue-changes-button">Salvar Alterações</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Confirmação de Exclusão de Fila -->
+    <div class="modal fade" id="deleteQueueModal" tabindex="-1" aria-labelledby="deleteQueueModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="deleteQueueModalLabel">Confirmar Exclusão</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">Tem certeza de que deseja excluir esta fila?</div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-danger" id="confirm-delete-queue-button">Excluir</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Adicionar Usuário -->
+    <div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="addUserModalLabel">Adicionar Novo Usuário</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="add-user-form">
+                <div class="mb-3">
+                    <label for="add-user-name" class="form-label">Nome</label>
+                    <input type="text" class="form-control" id="add-user-name" required>
+                </div>
+                <div class="mb-3">
+                    <label for="add-user-email" class="form-label">E-mail</label>
+                    <input type="email" class="form-control" id="add-user-email" required>
+                </div>
+                <div class="mb-3">
+                    <label for="add-user-password" class="form-label">Senha</label>
+                    <input type="password" class="form-control" id="add-user-password" required>
+                </div>
+                <div class="mb-3">
+                    <label for="add-user-profile" class="form-label">Nível do Perfil</label>
+                    <select class="form-select" id="add-user-profile">
+                        <option value="user" selected>Usuário</option>
+                        <option value="supervisor">Supervisor</option>
+                        <option value="admin">Administrador</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Filas Habilitadas</label>
+                    <div id="add-user-queues-container">
+                        <!-- Checkboxes das filas serão inseridos aqui -->
+                    </div>
+                </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="save-new-user-button">Salvar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Edição de Usuário -->
+    <div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="editUserModalLabel">Editar Usuário</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="edit-user-form">
+                <input type="hidden" id="edit-user-id">
+                <div class="mb-3">
+                    <label for="edit-user-name" class="form-label">Nome</label>
+                    <input type="text" class="form-control" id="edit-user-name" required>
+                </div>
+                <div class="mb-3">
+                    <label for="edit-user-email" class="form-label">E-mail</label>
+                    <input type="email" class="form-control" id="edit-user-email" required>
+                </div>
+                <div class="mb-3">
+                    <label for="edit-user-password" class="form-label">Nova Senha (deixe em branco para não alterar)</label>
+                    <input type="password" class="form-control" id="edit-user-password">
+                </div>
+                <div class="mb-3">
+                    <label for="edit-user-profile" class="form-label">Nível do Perfil</label>
+                    <select class="form-select" id="edit-user-profile">
+                        <option value="user">Usuário</option>
+                        <option value="supervisor">Supervisor</option>
+                        <option value="admin">Administrador</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Filas Habilitadas</label>
+                    <div id="edit-user-queues-container">
+                        <!-- Checkboxes das filas serão inseridos aqui -->
+                    </div>
+                </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="save-user-changes-button">Salvar Alterações</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Confirmação de Exclusão de Usuário -->
+    <div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="deleteUserModalLabel">Confirmar Exclusão</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">Tem certeza de que deseja excluir este usuário?</div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-danger" id="confirm-delete-user-button">Excluir</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Adicionar Contato -->
+    <div class="modal fade" id="addContactModal" tabindex="-1" aria-labelledby="addContactModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="addContactModalLabel">Adicionar Novo Contato</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="add-contact-form">
+                <div class="mb-3">
+                    <label for="add-contact-name" class="form-label">Nome</label>
+                    <input type="text" class="form-control" id="add-contact-name" required>
+                </div>
+                <div class="mb-3">
+                    <label for="add-contact-number" class="form-label">Número do WhatsApp</label>
+                    <input type="text" class="form-control" id="add-contact-number" placeholder="Ex: 558287654321" required>
+                </div>
+                <div class="mb-3">
+                    <label for="add-contact-info" class="form-label">Informação Adicional</label>
+                    <textarea class="form-control" id="add-contact-info" rows="3"></textarea>
+                </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="save-new-contact-button">Salvar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Confirmação de Exclusão de Contato -->
+    <div class="modal fade" id="deleteContactModal" tabindex="-1" aria-labelledby="deleteContactModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="deleteContactModalLabel">Confirmar Exclusão</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">Tem certeza de que deseja excluir este contato?</div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-danger" id="confirm-delete-contact-button">Excluir</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Adicionar Resposta Rápida -->
+    <div class="modal fade" id="addQuickResponseModal" tabindex="-1" aria-labelledby="addQuickResponseModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="addQuickResponseModalLabel">Adicionar Resposta Rápida</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="add-quick-response-form">
+                <div class="mb-3">
+                    <label for="add-qr-shortcut" class="form-label">Atalho</label>
+                    <input type="text" class="form-control" id="add-qr-shortcut" required>
+                </div>
+                <div class="mb-3">
+                    <label for="add-qr-response" class="form-label">Resposta Rápida</label>
+                    <textarea class="form-control" id="add-qr-response" rows="4" required></textarea>
+                </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="save-new-quick-response-button">Salvar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Edição de Resposta Rápida -->
+    <div class="modal fade" id="editQuickResponseModal" tabindex="-1" aria-labelledby="editQuickResponseModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="editQuickResponseModalLabel">Editar Resposta Rápida</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="edit-quick-response-form">
+                <input type="hidden" id="edit-qr-id">
+                <div class="mb-3">
+                    <label for="edit-qr-shortcut" class="form-label">Atalho</label>
+                    <input type="text" class="form-control" id="edit-qr-shortcut" required>
+                </div>
+                <div class="mb-3">
+                    <label for="edit-qr-response" class="form-label">Resposta Rápida</label>
+                    <textarea class="form-control" id="edit-qr-response" rows="4" required></textarea>
+                </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="save-quick-response-changes-button">Salvar Alterações</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Confirmação de Exclusão de Resposta Rápida -->
+    <div class="modal fade" id="deleteQuickResponseModal" tabindex="-1" aria-labelledby="deleteQuickResponseModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="deleteQuickResponseModalLabel">Confirmar Exclusão</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">Tem certeza de que deseja excluir esta resposta rápida?</div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-danger" id="confirm-delete-quick-response-button">Excluir</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Configurações do Sistema -->
+    <div class="modal fade" id="systemSettingsModal" tabindex="-1" aria-labelledby="systemSettingsModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="systemSettingsModalLabel">Configurações do Sistema - Permissões de Acesso</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p class="text-muted">Defina quais seções cada perfil de usuário pode visualizar. O perfil "Administrador" sempre tem acesso a tudo.</p>
+            <nav>
+              <div class="nav nav-tabs" id="nav-tab" role="tablist">
+                <button class="nav-link active" id="nav-supervisor-tab" data-bs-toggle="tab" data-bs-target="#nav-supervisor" type="button" role="tab">Supervisor</button>
+                <button class="nav-link" id="nav-user-tab" data-bs-toggle="tab" data-bs-target="#nav-user" type="button" role="tab">Usuário</button>
+              </div>
+            </nav>
+            <div class="tab-content p-3 border border-top-0" id="nav-tabContent">
+              <!-- Permissões para Supervisor -->
+              <div class="tab-pane fade show active" id="nav-supervisor" role="tabpanel">
+                <h6>Acessos para Supervisor:</h6>
+                <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="perm-supervisor-painel"><label class="form-check-label" for="perm-supervisor-painel">Painel</label></div>
+                <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="perm-supervisor-conexoes"><label class="form-check-label" for="perm-supervisor-conexoes">Conexões</label></div>
+                <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="perm-supervisor-atendimentos"><label class="form-check-label" for="perm-supervisor-atendimentos">Atendimentos</label></div>
+                <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="perm-supervisor-filas"><label class="form-check-label" for="perm-supervisor-filas">Filas</label></div>
+                <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="perm-supervisor-usuarios"><label class="form-check-label" for="perm-supervisor-usuarios">Usuários</label></div>
+                <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="perm-supervisor-contatos"><label class="form-check-label" for="perm-supervisor-contatos">Contatos</label></div>
+                <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="perm-supervisor-respostas_rapidas"><label class="form-check-label" for="perm-supervisor-respostas_rapidas">Respostas Rápidas</label></div>
+              </div>
+              <!-- Permissões para Usuário -->
+              <div class="tab-pane fade" id="nav-user" role="tabpanel">
+                <h6>Acessos para Usuário:</h6>
+                <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="perm-user-painel"><label class="form-check-label" for="perm-user-painel">Painel</label></div>
+                <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="perm-user-conexoes"><label class="form-check-label" for="perm-user-conexoes">Conexões</label></div>
+                <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="perm-user-atendimentos"><label class="form-check-label" for="perm-user-atendimentos">Atendimentos</label></div>
+                <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="perm-user-filas"><label class="form-check-label" for="perm-user-filas">Filas</label></div>
+                <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="perm-user-usuarios"><label class="form-check-label" for="perm-user-usuarios">Usuários</label></div>
+                <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="perm-user-contatos"><label class="form-check-label" for="perm-user-contatos">Contatos</label></div>
+                <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="perm-user-respostas_rapidas"><label class="form-check-label" for="perm-user-respostas_rapidas">Respostas Rápidas</label></div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="save-system-settings-button">Salvar Permissões</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Transferência de Ticket -->
+    <div class="modal fade" id="transferTicketModal" tabindex="-1" aria-labelledby="transferTicketModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="transferTicketModalLabel">Transferir Ticket</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p>Selecione a fila de destino para este ticket:</p>
+            <form id="transfer-ticket-form">
+                <div class="mb-3">
+                    <label for="transfer-queue-select" class="form-label">Fila de Destino</label>
+                    <select class="form-select" id="transfer-queue-select" required>
+                        <!-- Opções de fila serão inseridas aqui -->
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="transfer-user-select" class="form-label">Atendente de Destino (Opcional)</label>
+                    <select class="form-select" id="transfer-user-select">
+                        <option value="">Selecione uma fila primeiro...</option>
+                        <!-- Opções de usuário serão inseridas aqui dinamicamente -->
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label d-block">Transferir Histórico de Conversa?</label>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="transferHistory" id="transferHistoryYes" value="yes" checked>
+                        <label class="form-check-label" for="transferHistoryYes">
+                            <i class="bi bi-check-circle text-success me-1"></i>Sim - Manter histórico e protocolo
+                        </label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="transferHistory" id="transferHistoryNo" value="no">
+                        <label class="form-check-label" for="transferHistoryNo">
+                            <i class="bi bi-file-earmark-plus text-primary me-1"></i>Não - Criar novo ticket com novo protocolo
+                        </label>
+                    </div>
+                    <small class="form-text text-muted d-block mt-2">
+                        <strong>Sim:</strong> Transfere o ticket atual com todo o histórico.<br>
+                        <strong>Não:</strong> Resolve o ticket atual e cria um novo ticket vazio para o novo atendente.
+                    </small>
+                </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="confirm-transfer-button">Transferir</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Confirmação de Transferência -->
+    <div class="modal fade" id="confirmTransferActionModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Confirmar Transferência</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body" id="confirm-transfer-action-body">
+            <!-- Mensagem será inserida aqui via JS -->
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Não (Cancelar)</button>
+            <button type="button" class="btn btn-primary" id="confirm-transfer-action-button">Sim (Transferir)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Confirmação de Exclusão de Ticket -->
+    <div class="modal fade" id="deleteTicketModal" tabindex="-1" aria-labelledby="deleteTicketModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="deleteTicketModalLabel">Confirmar Exclusão de Ticket</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">Tem certeza de que deseja excluir este ticket permanentemente? Esta ação não pode ser desfeita.</div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-danger" id="confirm-delete-ticket-button">Excluir</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  <!-- Modal de Configuração de Chatbot -->
+  <div class="modal fade" id="chatbotConfigModal" tabindex="-1" aria-labelledby="chatbotConfigModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="chatbotConfigModalLabel">
+            <i class="bi bi-robot me-2"></i>Configuração do Chatbot
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            Configure as mensagens automáticas que o chatbot enviará durante o atendimento.
+          </div>
+
+          <form id="chatbot-config-form">
+            <div class="mb-4">
+              <label for="welcome-message" class="form-label fw-bold">
+                <i class="bi bi-hand-wave text-primary me-2"></i>Mensagem de Boas-vindas
+              </label>
+              <textarea class="form-control" id="welcome-message" rows="3" placeholder="Digite a mensagem de boas-vindas que será enviada quando o cliente iniciar a conversa..."></textarea>
+              <div class="form-text">Esta mensagem é enviada automaticamente assim que o cliente inicia uma nova conversa.</div>
+            </div>
+
+            <div class="mb-4">
+              <label for="queue-selection-message" class="form-label fw-bold">
+                <i class="bi bi-diagram-3 text-success me-2"></i>Mensagem de Seleção de Fila
+              </label>
+              <textarea class="form-control" id="queue-selection-message" rows="3" placeholder="Digite a mensagem que solicita ao cliente escolher uma fila..."></textarea>
+              <div class="form-text">Esta mensagem solicita que o cliente escolha uma das filas disponíveis no sistema.</div>
+            </div>
+
+            <div class="mb-4">
+              <label for="waiting-message" class="form-label fw-bold">
+                <i class="bi bi-hourglass-split text-warning me-2"></i>Mensagem de Aguardando Atendimento
+              </label>
+              <textarea class="form-control" id="waiting-message" rows="3" placeholder="Digite a mensagem exibida enquanto o cliente espera por um agente..."></textarea>
+              <div class="form-text">Esta mensagem é exibida enquanto o cliente aguarda ser atendido por um agente humano.</div>
+            </div>
+
+            <div class="mb-4">
+              <label for="thank-you-message" class="form-label fw-bold">
+                <i class="bi bi-heart text-danger me-2"></i>Mensagem de Agradecimento
+              </label>
+              <textarea class="form-control" id="thank-you-message" rows="3" placeholder="Digite a mensagem de agradecimento enviada ao final do atendimento..."></textarea>
+              <div class="form-text">Esta mensagem é enviada ao final do atendimento para agradecer o cliente.</div>
+            </div>
+
+            <div class="mb-4">
+              <label for="feedback-message" class="form-label fw-bold">
+                <i class="bi bi-star text-info me-2"></i>Mensagem de Avaliação
+              </label>
+              <textarea class="form-control" id="feedback-message" rows="3" placeholder="Digite a mensagem que solicita feedback do cliente sobre o atendimento..."></textarea>
+              <div class="form-text">Esta mensagem solicita que o cliente avalie o atendimento recebido.</div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="bi bi-x-circle me-2"></i>Cancelar
+          </button>
+          <button type="button" class="btn btn-success" id="save-chatbot-config">
+            <i class="bi bi-check-circle me-2"></i>Salvar Configurações
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+    <!-- Modal para Alterar Senha -->
+    <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="changePasswordModalLabel">Alterar Senha</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="change-password-form">
+                        <div class="mb-3">
+                            <label for="current-password" class="form-label">Senha Atual</label>
+                            <input type="password" class="form-control" id="current-password" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="new-password" class="form-label">Nova Senha</label>
+                            <input type="password" class="form-control" id="new-password" required minlength="6">
+                            <div class="form-text">Mínimo de 6 caracteres</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="confirm-new-password" class="form-label">Confirmar Nova Senha</label>
+                            <input type="password" class="form-control" id="confirm-new-password" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="confirm-change-password-button">Alterar Senha</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Busca de Protocolo -->
+    <div class="modal fade" id="searchProtocolModal" tabindex="-1" aria-labelledby="searchProtocolModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="searchProtocolModalLabel"><i class="bi bi-search me-2"></i>Buscar Protocolo</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+          </div>
+          <div class="modal-body">
+            <form id="search-protocol-form">
+              <div class="row">
+                <div class="col-md-8">
+                  <label for="search-protocol-input" class="form-label">Número do Protocolo</label>
+                  <input type="text" class="form-control" id="search-protocol-input" placeholder="Ex: #244-201025">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">Filtro</label>
+                  <select class="form-select" id="search-protocol-filter">
+                    <option value="mine">Meus Tickets</option>
+                    <option value="all">Todos os Tickets</option>
+                  </select>
+                </div>
+              </div>
+              <div class="mt-3">
+                <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search me-2"></i>Buscar</button>
+              </div>
+            </form>
+            <hr>
+            <div id="search-protocol-result" class="mt-3">
+              <!-- Resultado da busca será exibido aqui -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal para pesquisa profissional de usuários -->
+    <div class="modal fade" id="userSearchModal" tabindex="-1" aria-labelledby="userSearchModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="userSearchModalLabel">Pesquisar Usuários</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+          </div>
+          <div class="modal-body">
+            <form id="user-search-form" class="mb-3">
+              <div class="input-group">
+                <input id="user-search-modal-input" class="form-control" type="search" placeholder="Nome ou e-mail..." aria-label="Pesquisar usuário">
+                <button id="user-search-modal-run" class="btn btn-primary" type="button"><i class="bi bi-search"></i> Buscar</button>
+              </div>
+            </form>
+
+            <div class="table-responsive">
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>E-mail</th>
+                    <th>Perfil</th>
+                    <th>Filas</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="user-search-results-body">
+                  <!-- Resultados serão inseridos aqui -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            <button id="user-search-apply" type="button" class="btn btn-primary">Aplicar filtro na tabela</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Biblioteca do Socket.io -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Biblioteca de Emojis -->
+    <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
+    <!-- Sistema de Gerenciamento de Permissões -->
+    <script src="permissions-manager.js"></script>
+    <!-- O script foi movido para um arquivo externo para melhor organização -->
+    <script src="dashboard.js"></script>
+    <script src="dashboard-search.js"></script>
+
+</body>
+</html>

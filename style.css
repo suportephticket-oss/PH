@@ -1,0 +1,597 @@
+/* Estilo para centralizar o conteúdo e dar um visual mais limpo */
+body {
+    background-color: #ffffff;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+}
+
+/* Tema profissional - Fundo corporativo */
+.professional-theme {
+    background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+    min-height: 100vh;
+}
+
+/* Conteúdo principal com design profissional */
+.col-md-10 {
+    background-color: #e5e7eb;
+    min-height: 100vh;
+    box-shadow: 0 0 20px rgba(0,0,0,0.1);
+}
+
+/* Cards profissionais com bordas suaves */
+.col-md-10 .card {
+    background-color: #ffffff;
+    border: 1px solid #e1e8ed;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+    transition: all 0.3s ease;
+}
+
+.col-md-10 .card:hover {
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+}
+
+/* Garante que a imagem de fundo no painel ocupe todo o espaço */
+.bg-primary {
+    background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+    box-shadow: 0 4px 15px rgba(31, 41, 55, 0.3);
+}
+
+/* Estilizando os links de alternância entre login e registro */
+#toggle-link {
+    cursor: pointer;
+    text-decoration: none;
+}
+
+#toggle-link:hover {
+    text-decoration: underline;
+}
+
+/* ===== Login / Registro (Auth) ===== */
+.auth-box .form-label {
+    font-weight: 700;
+    color: #111827; /* slate-900 */
+    letter-spacing: 0.2px;
+}
+
+.auth-box {
+    background-color: #ffffff;
+    border: 1px solid #e5e7eb; /* slate-200 */
+    border-radius: 16px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+
+.auth-box .form-control {
+    background-color: #ffffff;
+    border: 2px solid #cbd5e1; /* slate-300 */
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    height: 48px;
+    font-weight: 600;
+    color: #0f172a; /* slate-900 */
+    transition: all 0.2s ease;
+    box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.02);
+}
+
+.auth-box .form-control:hover {
+    border-color: #94a3b8; /* slate-400 */
+}
+
+.auth-box .form-control:focus {
+    background-color: #ffffff;
+    border-color: #2563eb; /* blue-600 */
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.18), 0 4px 12px rgba(37, 99, 235, 0.12);
+    color: #0f172a;
+}
+
+.auth-box .form-control::placeholder {
+    color: #6b7280; /* gray-500 */
+    font-weight: 500;
+}
+
+/* Realça o rótulo quando o campo está em foco */
+.auth-box .mb-3:focus-within .form-label {
+    color: #2563eb; /* blue-600 */
+}
+
+.auth-box .btn-primary {
+    border-radius: 10px;
+    font-weight: 600;
+    padding: 0.65rem 1rem;
+}
+
+/* Estilo para o menu lateral do dashboard - Estilo WhatsApp */
+.nav-link.active {
+    background: linear-gradient(135deg, #25d366 0%, #128c7e 100%) !important; /* Verde WhatsApp */
+    color: #ffffff !important;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(37, 211, 102, 0.3);
+}
+
+.nav-link:hover {
+    background-color: rgba(37, 211, 102, 0.1); /* Verde WhatsApp com transparência */
+    color: #25d366; /* Verde WhatsApp */
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+/* Altera a cor da aba ativa (ATENDENDO/AGUARDANDO) para estilo WhatsApp */
+.nav-underline .nav-link.active {
+    border-bottom: 3px solid #25d366; /* Verde WhatsApp */
+    color: #25d366; /* Verde WhatsApp */
+    font-weight: 600;
+}
+
+/* Altera a cor de fundo do ticket ativo para estilo WhatsApp */
+#ticket-list .list-group-item.active {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    border-color: #25d366; /* Verde WhatsApp */
+    color: #1e293b;
+    border-left: 4px solid #25d366; /* Verde WhatsApp */
+    box-shadow: 0 2px 8px rgba(37, 211, 102, 0.15);
+}
+
+/* Adiciona uma sombra sutil aos itens da lista de tickets - Design premium profissional */
+.ticket-item-shadow {
+    box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.06),
+        0 1px 3px rgba(0, 0, 0, 0.04);
+    border-radius: 12px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    position: relative;
+    overflow: hidden;
+}
+
+.ticket-item-shadow::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #25d366, #128c7e, #075e54); /* Verde WhatsApp */
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.ticket-item-shadow:hover {
+    box-shadow:
+        0 8px 24px rgba(0, 0, 0, 0.12),
+        0 4px 8px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px) scale(1.01);
+    border-color: rgba(37, 211, 102, 0.3); /* Verde WhatsApp */
+}
+
+.ticket-item-shadow:hover::before {
+    opacity: 1;
+}
+
+/* Estilo para o overlay do botão "Aceitar" - Estilo WhatsApp */
+.ticket-overlay {
+    background:
+        linear-gradient(135deg, rgba(37, 211, 102, 0.95) 0%, rgba(18, 140, 126, 0.95) 100%),
+        radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.2) 0%, transparent 70%);
+    background-blend-mode: normal, overlay;
+    border-radius: 12px;
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow:
+        0 8px 24px rgba(37, 211, 102, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Mostra o overlay quando o mouse passa por cima do item do ticket */
+.list-group-item:hover .ticket-overlay {
+    opacity: 1;
+}
+
+/* Estilo para o corpo do chat - Estilo WhatsApp */
+#chat-body {
+    background: #e5ddd5; /* Fundo verde claro similar ao WhatsApp */
+    height: 0; /* Essencial para o scroll funcionar com flex-grow */
+    border-radius: 16px;
+    position: relative;
+    overflow: hidden;
+}
+
+#chat-body::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.02); /* Subtil overlay para profundidade */
+    pointer-events: none;
+}
+
+/* Estilo para as bolhas de chat - Estilo WhatsApp */
+.message-contact .card-body {
+    background: #dcf8c6; /* Verde claro das mensagens enviadas no WhatsApp */
+    border-radius: 20px 20px 20px 6px;
+    border: none;
+    box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.1);
+    color: #303030;
+    font-weight: 400;
+    position: relative;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.message-contact .card-body:hover {
+    box-shadow:
+        0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.message-bot .card-body {
+    background: #ffffff; /* Branco das mensagens recebidas no WhatsApp */
+    color: #303030;
+    border-radius: 20px 20px 6px 20px;
+    box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.1);
+    font-weight: 400;
+    position: relative;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.message-bot .card-body:hover {
+    box-shadow:
+        0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+/* Garante que bolhas não quebrem o layout quando houver palavras longas
+   e aplica limite de largura consistente (em conjunto com max-width inline). */
+/* (layout note) Bolhas usam largura controlada inline pelo JS (.card { max-width: 75% })
+   e estilos de quebra são mantidos nas regras de .card-body acima. */
+
+/* Estilo para o chat interno - Fundo WhatsApp */
+#chat-messages {
+    background: #e5ddd5; /* Mesmo fundo verde claro do WhatsApp */
+    border-radius: 16px;
+    position: relative;
+}
+
+#chat-messages::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.02); /* Overlay muito sutil */
+    pointer-events: none;
+}
+
+#chat-interno-content::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.01); /* Overlay muito sutil */
+    pointer-events: none;
+}
+
+/* Mensagem de nenhum ticket encontrado - Design premium */
+#no-tickets-message {
+    background:
+        linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%),
+        radial-gradient(circle at 50% 50%, rgba(79, 70, 229, 0.03) 0%, transparent 70%);
+    background-blend-mode: normal, multiply;
+    border: 2px dashed rgba(148, 163, 184, 0.4);
+    border-radius: 16px;
+    padding: 48px 24px;
+    margin: 24px 0;
+    position: relative;
+    overflow: hidden;
+}
+
+#no-tickets-message::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80px;
+    height: 80px;
+    background: radial-gradient(circle, rgba(79, 70, 229, 0.1) 0%, rgba(79, 70, 229, 0.05) 50%, transparent 100%);
+    border-radius: 50%;
+    z-index: 0;
+}
+
+#no-tickets-message .text-muted {
+    color: #64748b !important;
+    font-weight: 500;
+    position: relative;
+    z-index: 1;
+}
+
+/* Estilo para a barra de status do ticket */
+.ticket-status-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 5px; /* Largura da barra */
+    height: 100%;
+    background-color: #6c757d; /* Cor padrão (cinza) */
+}
+
+.ticket-status-attending {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+}
+
+.ticket-status-pending {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+}
+
+/* Estilo para alertas com múltiplas linhas */
+#alert-message {
+    white-space: pre-line; /* Preserva quebras de linha */
+    text-align: left;
+    line-height: 1.6;
+}
+
+/* Estilo para campos desabilitados no chat quando ticket está pendente */
+#chat-message-input:disabled {
+    background-color: #d4dbe3;
+    cursor: not-allowed;
+    opacity: 0.7;
+    border-color: #cbd5e1;
+}
+
+/* Formulários profissionais */
+.col-md-10 .form-control {
+    background-color: #ffffff;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    color: #1e293b;
+    font-weight: 400;
+    transition: all 0.3s ease;
+}
+
+.col-md-10 .form-control:focus {
+    background-color: #ffffff;
+    border-color: #25d366; /* Verde WhatsApp */
+    box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.1); /* Verde WhatsApp com transparência */
+    color: #1e293b;
+}
+
+/* Botões profissionais */
+.col-md-10 .btn {
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.col-md-10 .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.col-md-10 .btn-primary {
+    background: linear-gradient(135deg, #25d366 0%, #128c7e 100%); /* Verde WhatsApp */
+    border: none;
+}
+
+.col-md-10 .btn-primary:hover {
+    background: linear-gradient(135deg, #128c7e 0%, #075e54 100%); /* Verde WhatsApp mais escuro */
+}
+
+#chat-form button:disabled,
+#record-audio-button:disabled,
+#attach-file-button:disabled,
+#emoji-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #d4dbe3;
+    border-color: #cbd5e1;
+}
+
+/* Tabelas profissionais */
+.col-md-10 .table {
+    background-color: #ffffff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+}
+
+.col-md-10 .table thead th {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    color: #374151;
+    font-weight: 600;
+    border-bottom: 2px solid #4f46e5;
+    padding: 16px;
+}
+
+.col-md-10 .table tbody tr {
+    transition: all 0.3s ease;
+}
+
+.col-md-10 .table tbody tr:hover {
+    background-color: #f8fafc;
+    transform: scale(1.01);
+}
+
+/* Listas profissionais */
+.col-md-10 .list-group {
+    background-color: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+}
+
+.col-md-10 .list-group-item {
+    background-color: #ffffff;
+    border-color: #e2e8f0;
+    color: #374151;
+    padding: 16px;
+    transition: all 0.3s ease;
+}
+
+.col-md-10 .list-group-item:hover {
+    background-color: #e8ecf0;
+    border-color: #25d366; /* Verde WhatsApp */
+    transform: translateX(4px);
+}
+
+/* Navegação profissional */
+.col-md-10 .nav-tabs .nav-link {
+    background-color: #e8ecf0;
+    border-color: #e2e8f0;
+    color: #64748b;
+    border-radius: 8px 8px 0 0;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.col-md-10 .nav-tabs .nav-link.active {
+    background: linear-gradient(135deg, #25d366 0%, #128c7e 100%); /* Verde WhatsApp */
+    border-color: #25d366 #25d366 #ffffff; /* Verde WhatsApp */
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(37, 211, 102, 0.3);
+}
+
+/* Scroll interno da lista de tickets (vertical no lado direito da lista)
+   Implementação mínima e conservadora: transforma a coluna em flex
+   e faz #ticket-list usar overflow-y:auto sem alterar estilos visuais. */
+.atendimentos-row > .col-md-3 {
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* permite que filhos com overflow encolham */
+    height: 100%;
+    overflow: hidden; /* evita que filhos extrapolem horizontal/verticalmente */
+    box-sizing: border-box;
+}
+
+#ticket-list {
+    flex: 1 1 auto; /* ocupa espaço restante dentro da coluna */
+    min-height: 0; /* necessário para o overflow funcionar em flex */
+    overflow-y: auto; /* habilita scroll vertical interno (lado direito) */
+    -webkit-overflow-scrolling: touch;
+    padding-inline-end: 8px; /* evita conteúdo encostado no scrollbar (rtl-safe) */
+    box-sizing: border-box;
+    /* Usa 100% da altura disponível dentro da coluna. Removemos o cálculo fixo
+       que podia quebrar em zoom/variações de layout e deixamos o JS ajustar
+       maxHeight quando necessário (renderTicketList). */
+    max-height: 100%;
+}
+
+/* Se a mensagem "nenhum ticket" estiver visível, ela deve se comportar
+   como o conteúdo rolável em vez de expandir o painel */
+#no-tickets-message {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: 0; /* limpa margem que poderia empurrar o layout */
+}
+
+.chat-interno-notification {
+    animation: blink-red 1.5s infinite;
+}
+
+/* Header principal profissional */
+#main-header {
+    background: linear-gradient(135deg, #ffffff 0%, #e8ecf0 100%);
+    padding: 24px 32px;
+    border-radius: 12px;
+    margin-bottom: 24px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    border: 1px solid #e2e8f0;
+}
+
+#main-header h1 {
+    color: #1e293b;
+    font-weight: 700;
+    font-size: 1.8rem;
+    margin: 0;
+}
+
+/* Área de conteúdo principal profissional */
+#main-content-area {
+    background-color: #f0f2f5;
+    padding: 32px;
+    border-radius: 12px;
+    min-height: calc(100vh - 120px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+/* Modal profissional */
+.modal-content {
+    border-radius: 12px;
+    border: none;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    border-bottom: 1px solid #cbd5e1;
+    border-radius: 12px 12px 0 0;
+}
+
+/* Badge profissional */
+.badge {
+    border-radius: 20px;
+    font-weight: 500;
+    padding: 6px 12px;
+}
+
+/* Efeitos premium gerais */
+* {
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Scrollbar personalizado premium */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #d4dbe3;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%);
+    border-radius: 4px;
+    transition: background 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+}
+
+/* Loading states premium */
+.loading-shimmer {
+    background: linear-gradient(90deg, #d4dbe3 25%, #c7d0d9 50%, #d4dbe3 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+/* Animação de notificação profissional */
+@keyframes blink-red {
+    0%, 100% {
+        background-color: transparent;
+        box-shadow: none;
+    }
+    50% {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+    }
+}
+
+.chat-interno-notification {
+    animation: blink-red 1.5s infinite;
+}
+

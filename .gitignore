@@ -1,0 +1,6 @@
+node_modules/
+logs/
+.wwebjs_cache/
+database.db
+.DS_Store
+Thumbs.db
