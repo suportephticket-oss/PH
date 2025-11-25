@@ -581,7 +581,7 @@ Ops! Parece que nenhuma opção foi selecionada ainda.
 
 Por favor, escolha um número válido para prosseguirmos...`;
                 try {
-                    const contactId = `${contactNumber}@c.us`;
+                    const contactId = await getContactId(contactNumber, connectionId);
                     if (client) {
                         try { await client.sendMessage(contactId, reminderMsg); } catch (sendErr) { logger.warn(`Erro ao enviar lembrete para ${contactNumber}: ${sendErr.message}`); }
                     } else {
@@ -605,7 +605,7 @@ Por favor, escolha um número válido para prosseguirmos...`;
 
                 const finalMsg = `🤖 *Robô I Automático* 💬\n\n⚠ Nenhuma opção foi escolhida.\nO atendimento será encerrado🛑\n\nAté logo 🙂👋`;
                 try {
-                    const contactId = `${contactNumber}@c.us`;
+                    const contactId = await getContactId(contactNumber, connectionId);
                     if (client) {
                         try { await client.sendMessage(contactId, finalMsg); } catch (sendErr) { logger.warn(`Erro ao enviar mensagem final para ${contactNumber}: ${sendErr.message}`); }
                     } else {
@@ -623,6 +623,40 @@ Por favor, escolha um número válido para prosseguirmos...`;
     }, 3 * 60 * 1000);
 
     pendingTimers[contactNumber] = { reminder, final };
+}
+
+// Função para obter o formato correto do contact ID (@c.us ou @lid)
+// Busca no banco se disponível, caso contrário usa o formato padrão @c.us
+async function getContactId(contactNumber, connectionId = null) {
+    return new Promise((resolve) => {
+        // Se temos connection_id, tenta buscar do banco
+        if (connectionId) {
+            db.get('SELECT contact_wa_id FROM pending_queue_selection WHERE contact_number = ? AND connection_id = ? LIMIT 1', 
+                [contactNumber, connectionId], 
+                (err, row) => {
+                    if (!err && row && row.contact_wa_id) {
+                        resolve(row.contact_wa_id);
+                    } else {
+                        // Fallback para formato padrão
+                        resolve(`${contactNumber}@c.us`);
+                    }
+                }
+            );
+        } else {
+            // Sem connection_id, tenta buscar qualquer registro
+            db.get('SELECT contact_wa_id FROM pending_queue_selection WHERE contact_number = ? LIMIT 1', 
+                [contactNumber], 
+                (err, row) => {
+                    if (!err && row && row.contact_wa_id) {
+                        resolve(row.contact_wa_id);
+                    } else {
+                        // Fallback para formato padrão
+                        resolve(`${contactNumber}@c.us`);
+                    }
+                }
+            );
+        }
+    });
 }
 
 // Wrapper para registrar e unificar envios via WhatsApp — facilita diagnóstico de envios duplicados
@@ -1603,7 +1637,7 @@ async function initializeConnection(id, res = null) {
                                         // Envia mensagem de confirmação
                                         (async () => {
                                             try {
-                                                const contactId = `${contactNumber}@c.us`;
+                                                const contactId = await getContactId(contactNumber, id);
                                                 if (client) {
                                                     const confirmText = `👋 Perfeito!\nVocê selecionou o setor *${chosen.name}*.\n\n📄 Seu atendimento foi registrado com o protocolo nº *${protocolNumber}*.\n\n💬 Um de nossos atendentes entrará em contato em breve.\n\nPara agilizar o seu atendimento, poderia adiantar alguns detalhes sobre o problema ou solicitação?`;
                                                     try {
@@ -1653,7 +1687,7 @@ async function initializeConnection(id, res = null) {
                                             const closingMsg = `🤖 *Robô I Automático* 💬\n\n⚠ Não identificamos uma resposta válida.\n\nPara manter a qualidade e agilidade do nosso atendimento, esta conversa será encerrada automaticamente.\n\n💬 Caso ainda precise de suporte, basta enviar uma nova mensagem para iniciar um novo atendimento.`;
                                             (async () => {
                                                 try {
-                                                    const contactId = `${contactNumber}@c.us`;
+                                                    const contactId = await getContactId(contactNumber, id);
                                                     if (client) {
                                                         try {
                                                             await client.sendMessage(contactId, closingMsg);
@@ -1695,7 +1729,7 @@ async function initializeConnection(id, res = null) {
                                                 const reply = (cfgRow && cfgRow.invalid_selection_message) ? cfgRow.invalid_selection_message : `🤖 *Robô I Automático* 💬\n\nDesculpe, não entendi sua escolha.\nInforme *o número Ex:(1,2 ou 3...)*\n\nPara que possamos direcionar seu atendimento corretamente.`;
                                                 (async () => {
                                                     try {
-                                                        const contactId = `${contactNumber}@c.us`;
+                                                        const contactId = await getContactId(contactNumber, id);
                                                         if (client && pendingRecord.initial_sent) {
                                                             try {
                                                                 await client.sendMessage(contactId, reply);
@@ -1750,12 +1784,12 @@ async function initializeConnection(id, res = null) {
                                 // Cooldown expirado ou inexistente - registra contato como pendente de seleção de fila
                                 logger.info(`[WA inbound] Registrando ${contactNumber} como pendente de seleção de fila (conn ${id}).`);
                                 
-                                // Insere ou atualiza na tabela de pendentes
+                                // Insere ou atualiza na tabela de pendentes, incluindo o contact_wa_id completo
                                 const insertPendingSql = `INSERT OR REPLACE INTO pending_queue_selection 
-                                    (contact_number, contact_name, profile_pic_url, connection_id, first_message, first_message_timestamp, invalid_attempts) 
-                                    VALUES (?, ?, ?, ?, ?, ?, 0)`;
+                                    (contact_number, contact_name, profile_pic_url, connection_id, first_message, first_message_timestamp, invalid_attempts, contact_wa_id) 
+                                    VALUES (?, ?, ?, ?, ?, ?, 0, ?)`;
                                 
-                                db.run(insertPendingSql, [contactNumber, contactName, profilePicUrl, id, messageBody, messageTime], function(err) {
+                                db.run(insertPendingSql, [contactNumber, contactName, profilePicUrl, id, messageBody, messageTime, msg.from], function(err) {
                                     if (err) {
                                         logger.error(`Erro ao registrar contato pendente: ${err.message}`);
                                         return;
@@ -1809,47 +1843,61 @@ async function initializeConnection(id, res = null) {
                                                 // Envia as mensagens via WhatsApp (se cliente disponível) após 10 segundos
                                                 setTimeout(async () => {
                                                     try {
-                                                        const contactId = `${contactNumber}@c.us`;
-                                                        logger.info(`[WA auto-message] Preparando envio automático para contato pendente ${contactNumber} (conn: ${id}). Cliente presente: ${client ? 'sim' : 'não'}`);
-
-                                                        if (!client) {
-                                                            logger.warn(`[WA auto-message] Cliente WhatsApp não disponível para conexão ${id}. Pulando envios automáticos para ${contactNumber}.`);
-                                                            return;
-                                                        }
-
-                                                        // Verifica estado do client antes de enviar para evitar erros silenciosos
-                                                        let clientState = null;
-                                                        try {
-                                                            clientState = await client.getState();
-                                                            logger.info(`[WA auto-message] Estado do client para conn ${id}: ${clientState}`);
-                                                        } catch (stateErr) {
-                                                            logger.warn(`[WA auto-message] Não foi possível obter estado do client para conn ${id}: ${stateErr.message}`);
-                                                        }
-
-                                                        if (clientState !== 'CONNECTED') {
-                                                            logger.warn(`[WA auto-message] Client não está conectado (estado=${clientState}). Não será enviada a mensagem automática para ${contactNumber}.`);
-                                                            return;
-                                                        }
-
-                                                        // Envia mensagem inicial primeiro (se configurada)
-                                                        if (initialMessage && initialMessage.length > 0) {
-                                                            try {
-                                                                logger.info(`[WA auto-message] Enviando mensagem inicial para ${contactNumber}`);
-                                                                await client.sendMessage(contactId, initialMessage);
-                                                            } catch (sendErr) {
-                                                                logger.error(`[WA auto-message] Erro ao enviar mensagem inicial para ${contactNumber}: ${sendErr.message}`);
+                                                        // Busca o contact_wa_id salvo no banco para usar o formato correto (@c.us ou @lid)
+                                                        db.get('SELECT contact_wa_id FROM pending_queue_selection WHERE contact_number = ? AND connection_id = ?', [contactNumber, id], async (waIdErr, waIdRow) => {
+                                                            if (waIdErr || !waIdRow || !waIdRow.contact_wa_id) {
+                                                                logger.warn(`[WA auto-message] Não foi possível obter contact_wa_id para ${contactNumber}. Usando fallback @c.us`);
+                                                                var contactId = `${contactNumber}@c.us`;
+                                                            } else {
+                                                                var contactId = waIdRow.contact_wa_id;
                                                             }
-                                                        }
+                                                            
+                                                            logger.info(`[WA auto-message] Preparando envio automático para contato pendente ${contactNumber} usando ID: ${contactId} (conn: ${id}). Cliente presente: ${client ? 'sim' : 'não'}`);
 
-                                                        // Em seguida, envia a lista de filas (se houver)
-                                                        if (queuesText) {
-                                                            try {
-                                                                logger.info(`[WA auto-message] Enviando lista de filas para ${contactNumber}`);
-                                                                await client.sendMessage(contactId, queuesText);
-                                                            } catch (sendErr2) {
-                                                                logger.error(`[WA auto-message] Erro ao enviar lista de filas para ${contactNumber}: ${sendErr2.message}`);
+                                                            if (!client) {
+                                                                logger.warn(`[WA auto-message] Cliente WhatsApp não disponível para conexão ${id}. Pulando envios automáticos para ${contactNumber}.`);
+                                                                return;
                                                             }
-                                                        }
+
+                                                            // Verifica estado do client antes de enviar para evitar erros silenciosos
+                                                            let clientState = null;
+                                                            try {
+                                                                clientState = await client.getState();
+                                                                logger.info(`[WA auto-message] Estado do client para conn ${id}: ${clientState}`);
+                                                            } catch (stateErr) {
+                                                                logger.warn(`[WA auto-message] Não foi possível obter estado do client para conn ${id}: ${stateErr.message}`);
+                                                            }
+
+                                                            if (clientState !== 'CONNECTED') {
+                                                                logger.warn(`[WA auto-message] Client não está conectado (estado=${clientState}). Não será enviada a mensagem automática para ${contactNumber}.`);
+                                                                return;
+                                                            }
+
+                                                            // Envia mensagem inicial primeiro (se configurada)
+                                                            if (initialMessage && initialMessage.length > 0) {
+                                                                try {
+                                                                    logger.info(`[WA auto-message] Enviando mensagem inicial para ${contactNumber}`);
+                                                                    await client.sendMessage(contactId, initialMessage);
+                                                                } catch (sendErr) {
+                                                                    logger.error(`[WA auto-message] Erro ao enviar mensagem inicial para ${contactNumber}: ${sendErr.message}`);
+                                                                }
+                                                            }
+
+                                                            // Em seguida, envia a lista de filas (se houver)
+                                                            if (queuesText) {
+                                                                try {
+                                                                    logger.info(`[WA auto-message] Enviando lista de filas para ${contactNumber}`);
+                                                                    await client.sendMessage(contactId, queuesText);
+                                                                } catch (sendErr2) {
+                                                                    logger.error(`[WA auto-message] Erro ao enviar lista de filas para ${contactNumber}: ${sendErr2.message}`);
+                                                                }
+                                                            }
+                                                            
+                                                            // Marca que a mensagem inicial foi enviada (ou tentativa feita)
+                                                            db.run('UPDATE pending_queue_selection SET initial_sent = 1 WHERE contact_number = ? AND connection_id = ?', [contactNumber, id], (updErr) => {
+                                                                if (updErr) logger.warn(`Erro ao marcar initial_sent para ${contactNumber}: ${updErr.message}`);
+                                                            });
+                                                        });
                                                     } catch (outerErr) {
                                                         logger.error(`[WA auto-message] Erro inesperado ao processar mensagens automáticas para ${contactNumber}: ${outerErr.message}`);
                                                     } finally {
