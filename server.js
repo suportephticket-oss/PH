@@ -1340,15 +1340,27 @@ async function initializeConnection(id, res = null) {
             // Log inicial da mensagem recebida
             try { logger.info(`[WA inbound] Mensagem recebida na conexão ${id} de ${msg.from}: tipo=${msg.type || 'text'}`); } catch(_) {}
 
-            const contact = await msg.getContact();
+            // Workaround para erro "getIsMyContact is not a function"
+            let contact = null;
             let profilePicUrl = null;
+            let contactName = null;
+            
             try {
-                profilePicUrl = await contact.getProfilePicUrl();
-            } catch (e) {
-                logger.warn(`Falha ao obter foto de perfil de ${msg.from}: ${e.message}`);
+                contact = await msg.getContact();
+                contactName = contact.name || contact.pushname || null;
+                try {
+                    profilePicUrl = await contact.getProfilePicUrl();
+                } catch (e) {
+                    logger.warn(`Falha ao obter foto de perfil de ${msg.from}: ${e.message}`);
+                }
+            } catch (contactErr) {
+                logger.warn(`Falha ao obter contato de ${msg.from}: ${contactErr.message}. Usando fallback.`);
+                // Fallback: usar informações básicas da mensagem
+                contactName = msg._data && msg._data.notifyName ? msg._data.notifyName : null;
             }
-            const contactNumber = msg.from.replace('@c.us', '');
-            const contactName = contact.name || contact.pushname || contactNumber;
+            
+            const contactNumber = msg.from.replace('@c.us', '').replace('@lid', '');
+            if (!contactName) contactName = contactNumber;
             const messageTime = getLocalDateTime();
             
             let messageBody = msg.body;
