@@ -4639,6 +4639,23 @@ async function reopenTicket() {
 
     socket.on('ticket_update', (data) => {
         console.log('Atualização de ticket recebida:', data);
+        
+        // Filtra tickets que não pertencem ao usuário atual (exceto admins)
+        if (currentUser && currentUser.profile !== 'admin' && currentUser.profile !== 'administrador') {
+            // Se o ticket tem user_id e não é do usuário atual, ignora (exceto se está sendo transferido para ele)
+            if (data.user_id && data.user_id !== currentUser.id && data.status !== 'transferred') {
+                console.log('[Filter] Ignorando ticket de outro usuário:', data.id);
+                return;
+            }
+            // Se o ticket tem queue_id, verifica se está nas filas permitidas do usuário
+            if (data.queue_id && currentUser.queue_ids && currentUser.queue_ids.length > 0) {
+                if (!currentUser.queue_ids.includes(data.queue_id)) {
+                    console.log('[Filter] Ignorando ticket de fila não autorizada:', data.id, 'queue:', data.queue_id);
+                    return;
+                }
+            }
+        }
+        
         const wasViewingPendingBefore = (currentTicketView === 'pending');
         // Se estamos na aba PENDENTE e o update também é para 'pending',
         // não recarregamos a lista nem mudamos a view — apenas atualizamos o item local.
