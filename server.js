@@ -3997,20 +3997,35 @@ app.post('/api/connections', (req, res) => {
     const { name, is_default, start_time, end_time, birthday_message, farewell_message, queue_ids, chatbot_enabled } = req.body;
 
     if (!name) {
-        return res.status(400).json({ "error": "O campo 'nome' é obrigatório." });
+        return res.status(400).json({ error: "O campo 'nome' é obrigatório." });
     }
+
+    const isValidTime = (t) => !t || /^([01]\d|2[0-3]):[0-5]\d$/.test(t);
+    if (!isValidTime(start_time) || !isValidTime(end_time)) {
+        return res.status(400).json({ error: "Formato de horário inválido (use HH:MM)." });
+    }
+
+    // Limpa e normaliza queue_ids
+    const cleanedQueueIds = Array.isArray(queue_ids)
+        ? [...new Set(queue_ids.filter(q => (Number.isInteger(q) || (typeof q === 'string' && /^\d+$/.test(q)))).map(Number))]
+        : [];
 
     db.serialize(() => {
         db.run('BEGIN TRANSACTION');
 
+        // Garante unicidade de is_default se solicitado
+        if (is_default) {
+            db.run('UPDATE connections SET is_default = 0 WHERE is_default = 1');
+        }
+
         const sql = 'INSERT INTO connections (name, is_default, start_time, end_time, birthday_message, farewell_message, chatbot_enabled, status, last_updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)';
         const params = [
-            name, 
+            name,
             is_default ? 1 : 0,
             start_time || null,
             end_time || null,
-            birthday_message, 
-            farewell_message, 
+            birthday_message || null,
+            farewell_message || null,
             chatbot_enabled !== undefined ? (chatbot_enabled ? 1 : 0) : 1,
             'DISCONNECTED'
         ];
@@ -4018,31 +4033,31 @@ app.post('/api/connections', (req, res) => {
         db.run(sql, params, function(err) {
             if (err) {
                 db.run('ROLLBACK');
-                return res.status(400).json({ "error": err.message });
+                return res.status(400).json({ error: err.message });
             }
             const connectionId = this.lastID;
 
-            if (queue_ids && queue_ids.length > 0) {
+            if (cleanedQueueIds.length > 0) {
+                let hadQueueError = false;
                 const stmt = db.prepare('INSERT INTO connection_queues (connection_id, queue_id) VALUES (?, ?)');
-                for (const queue_id of queue_ids) {
-                    stmt.run(connectionId, queue_id, (err) => {
-                        if (err) {
-                            db.run('ROLLBACK');
-                            return res.status(500).json({ error: "Falha ao associar fila à conexão." });
+                for (const queue_id of cleanedQueueIds) {
+                    stmt.run(connectionId, queue_id, (qErr) => {
+                        if (qErr && !hadQueueError) {
+                            hadQueueError = true;
                         }
                     });
                 }
-                stmt.finalize((err) => {
-                    if (err) {
+                stmt.finalize((finalErr) => {
+                    if (finalErr || hadQueueError) {
                         db.run('ROLLBACK');
-                        return res.status(500).json({ error: "Falha ao finalizar associação de filas." });
+                        return res.status(500).json({ error: 'Falha ao associar filas à conexão.' });
                     }
                     db.run('COMMIT');
-                    res.status(201).json({ id: connectionId, ...req.body });
+                    return res.status(201).json({ id: connectionId, name, is_default: !!is_default, start_time, end_time, birthday_message, farewell_message, chatbot_enabled: chatbot_enabled !== undefined ? !!chatbot_enabled : true, queue_ids: cleanedQueueIds });
                 });
             } else {
                 db.run('COMMIT');
-                res.status(201).json({ id: connectionId, ...req.body });
+                return res.status(201).json({ id: connectionId, name, is_default: !!is_default, start_time, end_time, birthday_message, farewell_message, chatbot_enabled: chatbot_enabled !== undefined ? !!chatbot_enabled : true, queue_ids: [] });
             }
         });
     });
@@ -4054,13 +4069,27 @@ app.put('/api/connections/:id', (req, res) => {
     const { name, is_default, start_time, end_time, birthday_message, farewell_message, queue_ids, chatbot_enabled } = req.body;
 
     if (!name) {
-        return res.status(400).json({ error: "O nome da conexão é obrigatório." });
+        return res.status(400).json({ error: 'O nome da conexão é obrigatório.' });
+    }
+    const isValidTime = (t) => !t || /^([01]\d|2[0-3]):[0-5]\d$/.test(t);
+    if (!isValidTime(start_time) || !isValidTime(end_time)) {
+        return res.status(400).json({ error: 'Formato de horário inválido (use HH:MM).' });
     }
 
-    // Armazena estado antigo do chatbot (necessário para reenvio se reenab)
     db.get('SELECT chatbot_enabled FROM connections WHERE id = ?', [id], (err, oldRow) => {
-        const oldChatbotEnabled = (oldRow && oldRow.chatbot_enabled) || 0;
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        if (!oldRow) {
+            return res.status(404).json({ error: 'Conexão não encontrada.' });
+        }
+        const oldChatbotEnabled = oldRow.chatbot_enabled || 0;
         const newChatbotEnabled = chatbot_enabled !== undefined ? (chatbot_enabled ? 1 : 0) : oldChatbotEnabled;
+
+        // Limpa e normaliza queue_ids
+        const cleanedQueueIds = Array.isArray(queue_ids)
+            ? [...new Set(queue_ids.filter(q => (Number.isInteger(q) || (typeof q === 'string' && /^\d+$/.test(q)))).map(Number))]
+            : [];
 
         const sql = 'UPDATE connections SET name = ?, is_default = ?, start_time = ?, end_time = ?, birthday_message = ?, farewell_message = ?, chatbot_enabled = ? WHERE id = ?';
         const params = [
@@ -4068,47 +4097,62 @@ app.put('/api/connections/:id', (req, res) => {
             is_default ? 1 : 0,
             start_time || null,
             end_time || null,
-            birthday_message,
-            farewell_message,
+            birthday_message || null,
+            farewell_message || null,
             newChatbotEnabled,
             id
         ];
 
         db.serialize(() => {
             db.run('BEGIN TRANSACTION');
-
-            // 1. Atualiza os dados da conexão
-            db.run(sql, params, function(err) {
-                if (err) {
+            if (is_default) {
+                db.run('UPDATE connections SET is_default = 0 WHERE is_default = 1 AND id != ?', id);
+            }
+            let updateFailed = false;
+            db.run(sql, params, function(uErr) {
+                if (uErr) {
+                    updateFailed = true;
                     db.run('ROLLBACK');
-                    return res.status(400).json({ "error": err.message });
+                    return res.status(400).json({ error: uErr.message });
+                }
+                if (this.changes === 0) {
+                    updateFailed = true;
+                    db.run('ROLLBACK');
+                    return res.status(404).json({ error: 'Conexão não encontrada.' });
                 }
             });
+            if (updateFailed) { return; }
 
-            // 2. Limpa as associações de fila existentes para esta conexão
-            db.run('DELETE FROM connection_queues WHERE connection_id = ?', id);
-
-            // 3. Insere as novas associações (se houver)
-            if (queue_ids && queue_ids.length > 0) {
-                const stmt = db.prepare('INSERT INTO connection_queues (connection_id, queue_id) VALUES (?, ?)');                for (const queue_id of queue_ids) {
-                    stmt.run(id, queue_id);
+            db.run('DELETE FROM connection_queues WHERE connection_id = ?', id, (delErr) => {
+                if (delErr) {
+                    db.run('ROLLBACK');
+                    return res.status(500).json({ error: 'Falha ao limpar filas da conexão.' });
                 }
-                stmt.finalize((err) => {
-                    if (err) {
-                        db.run('ROLLBACK');
-                        return res.status(500).json({ error: "Falha ao atualizar associação de filas." });
+                if (cleanedQueueIds.length > 0) {
+                    let hadQueueError = false;
+                    const stmt = db.prepare('INSERT INTO connection_queues (connection_id, queue_id) VALUES (?, ?)');
+                    for (const queue_id of cleanedQueueIds) {
+                        stmt.run(id, queue_id, (qErr) => {
+                            if (qErr && !hadQueueError) {
+                                hadQueueError = true;
+                            }
+                        });
                     }
-                    // Após commit, verifica se chatbot foi reabilitado
+                    stmt.finalize((finalErr) => {
+                        if (finalErr || hadQueueError) {
+                            db.run('ROLLBACK');
+                            return res.status(500).json({ error: 'Falha ao atualizar associação de filas.' });
+                        }
+                        db.run('COMMIT');
+                        handleChatbotReenable(id, oldChatbotEnabled, newChatbotEnabled);
+                        return res.json({ id: Number(id), name, is_default: !!is_default, start_time, end_time, birthday_message, farewell_message, chatbot_enabled: !!(chatbot_enabled !== undefined ? chatbot_enabled : oldChatbotEnabled), queue_ids: cleanedQueueIds });
+                    });
+                } else {
                     db.run('COMMIT');
                     handleChatbotReenable(id, oldChatbotEnabled, newChatbotEnabled);
-                    res.json({ id: id, ...req.body });
-                });
-            } else {
-                // Após commit, verifica se chatbot foi reabilitado
-                db.run('COMMIT');
-                handleChatbotReenable(id, oldChatbotEnabled, newChatbotEnabled);
-                res.json({ id: id, ...req.body });
-            }
+                    return res.json({ id: Number(id), name, is_default: !!is_default, start_time, end_time, birthday_message, farewell_message, chatbot_enabled: !!(chatbot_enabled !== undefined ? chatbot_enabled : oldChatbotEnabled), queue_ids: [] });
+                }
+            });
         });
     });
 });
