@@ -1585,7 +1585,9 @@ async function initializeConnection(id, res = null) {
                                                         ticket_id: newTicketId,
                                                         body: messageBody,
                                                         sender: 'contact',
-                                                        timestamp: messageTime
+                                                        timestamp: messageTime,
+                                                        queue_id: chosen.id,
+                                                        ticket_user_id: null
                                                     });
                                                 }
                                             }
@@ -2418,6 +2420,8 @@ app.put('/api/tickets/:id/status', async (req, res) => {
 
             // Pre-compute whether acting user belongs to the ticket's queue (if any)
             let belongsToQueue = false;
+            let isAdmin = false;
+            let isSupervisor = false;
             if (ticket.queue_id) {
                 belongsToQueue = await new Promise((resolve, reject) => {
                     db.get('SELECT 1 FROM user_queues WHERE user_id = ? AND queue_id = ? LIMIT 1', [acting, ticket.queue_id], (err, row) => {
@@ -2426,6 +2430,17 @@ app.put('/api/tickets/:id/status', async (req, res) => {
                     });
                 });
             }
+
+            // Check if acting user is admin or supervisor
+            const userProfile = await new Promise((resolve, reject) => {
+                db.get('SELECT profile FROM users WHERE id = ?', [acting], (err, row) => {
+                    if (err) return reject(err);
+                    resolve(row ? String(row.profile).toLowerCase() : null);
+                });
+            });
+            
+            isAdmin = userProfile === 'admin' || userProfile === 'administrador';
+            isSupervisor = userProfile === 'supervisor';
 
             // If the ticket is already assigned to another user, disallow —
             // EXCEPT when the ticket is in 'pending' (aguardando) and the acting user
@@ -2439,10 +2454,39 @@ app.put('/api/tickets/:id/status', async (req, res) => {
                 }
             }
 
-            // If the ticket has a queue_id, ensure acting user belongs to that queue
-            if (ticket.queue_id) {
+            // If the ticket has a queue_id, ensure acting user belongs to that queue (unless admin/supervisor)
+            if (ticket.queue_id && !isAdmin) {
                 if (!belongsToQueue) {
-                    return res.status(403).json({ error: 'Agente não pertence à fila deste ticket.' });
+                    // Se é supervisor e dono do ticket, permite continuar independente da fila
+                    if (isSupervisor && ticket.user_id === acting) {
+                        logger.info(`Supervisor ${acting} continuando seu próprio ticket ${id} mesmo sem estar na fila ${ticket.queue_id}.`);
+                    } 
+                    // Se o ticket foi transferido para o agente (user_id == acting), permite aceitar
+                    else if (ticket.user_id === acting) {
+                        logger.info(`Agente ${acting} aceitando ticket ${id} que foi transferido para ele (user_id match).`);
+                    }
+                    else if (ticket.status === 'pending') {
+                        // Allow accepting pending tickets and assign agent's primary queue to the ticket
+                        const agentQueue = await new Promise((resolve, reject) => {
+                            db.get('SELECT queue_id FROM user_queues WHERE user_id = ? ORDER BY rowid ASC LIMIT 1', [acting], (err, row) => {
+                                if (err) return reject(err);
+                                resolve(row ? row.queue_id : null);
+                            });
+                        });
+                        if (agentQueue) {
+                            await new Promise((resolve, reject) => {
+                                db.run('UPDATE tickets SET queue_id = ? WHERE id = ?', [agentQueue, id], (err) => {
+                                    if (err) return reject(err);
+                                    resolve();
+                                });
+                            });
+                            logger.info(`Ticket ${id} queue updated to ${agentQueue} for agent ${acting} accepting.`);
+                        } else {
+                            return res.status(403).json({ error: 'Agente não possui fila atribuída; não é possível aceitar este ticket.' });
+                        }
+                    } else {
+                        return res.status(403).json({ error: 'Agente não pertence à fila deste ticket.' });
+                    }
                 }
             } else {
                 // If ticket has no queue, attempt to assign the agent's primary queue to the ticket
@@ -2521,7 +2565,7 @@ app.put('/api/tickets/:id/status', async (req, res) => {
                 try {
                     // Busca contato e possível connection_id do ticket
                     const ticketRow = await new Promise((resolve, reject) => {
-                        db.get('SELECT contact_number, connection_id, is_manual FROM tickets WHERE id = ?', [id], (err, row) => {
+                        db.get('SELECT contact_number, connection_id, is_manual, queue_id, user_id FROM tickets WHERE id = ?', [id], (err, row) => {
                             if (err) return reject(err);
                             resolve(row || null);
                         });
@@ -2603,7 +2647,7 @@ app.put('/api/tickets/:id/status', async (req, res) => {
                         const sentAt = getLocalDateTime();
                         db.run('INSERT INTO messages (ticket_id, body, sender, timestamp) VALUES (?, ?, ?, ?)', [id, farewell, 'bot', sentAt], function(saveErr) {
                             if (saveErr) logger.warn(`Falha ao salvar mensagem de despedida para ticket ${id}: ${saveErr.message}`);
-                            else io.emit('new-message', { id: this.lastID, ticket_id: id, body: farewell, sender: 'bot', timestamp: sentAt });
+                            else io.emit('new-message', { id: this.lastID, ticket_id: id, body: farewell, sender: 'bot', timestamp: sentAt, queue_id: ticketRow.queue_id, ticket_user_id: ticketRow.user_id });
                         });
                         return;
                     }
@@ -2615,7 +2659,7 @@ app.put('/api/tickets/:id/status', async (req, res) => {
                         const sentAt = getLocalDateTime();
                         db.run('INSERT INTO messages (ticket_id, body, sender, timestamp, sent_via_whatsapp, wa_message_id, delivered) VALUES (?, ?, ?, ?, ?, ?, ?)', [id, farewell, 'bot', sentAt, 1, waId, 0], function(saveErr) {
                             if (saveErr) logger.warn(`Falha ao salvar mensagem de despedida para ticket ${id}: ${saveErr.message}`);
-                            else io.emit('new-message', { id: this.lastID, ticket_id: id, body: farewell, sender: 'bot', timestamp: sentAt, sent_via_whatsapp: 1, wa_message_id: waId, delivered: 0 });
+                            else io.emit('new-message', { id: this.lastID, ticket_id: id, body: farewell, sender: 'bot', timestamp: sentAt, sent_via_whatsapp: 1, wa_message_id: waId, delivered: 0, queue_id: ticketRow.queue_id, ticket_user_id: ticketRow.user_id });
                         });
                         logger.info(`Mensagem de despedida enviada para ticket ${id} (contato ${ticketRow.contact_number}).`);
                         
@@ -2637,7 +2681,7 @@ app.put('/api/tickets/:id/status', async (req, res) => {
                         const sentAt = getLocalDateTime();
                         db.run('INSERT INTO messages (ticket_id, body, sender, timestamp) VALUES (?, ?, ?, ?)', [id, farewell, 'bot', sentAt], function(saveErr) {
                             if (saveErr) logger.warn(`Falha ao salvar mensagem de despedida após erro de envio para ticket ${id}: ${saveErr.message}`);
-                            else io.emit('new-message', { id: this.lastID, ticket_id: id, body: farewell, sender: 'bot', timestamp: sentAt });
+                            else io.emit('new-message', { id: this.lastID, ticket_id: id, body: farewell, sender: 'bot', timestamp: sentAt, queue_id: ticketRow.queue_id, ticket_user_id: ticketRow.user_id });
                         });
                     }
                 } catch (e) {
@@ -2678,6 +2722,7 @@ app.get('/api/tickets', (req, res) => {
                 if (err) return res.status(500).json({ error: err.message });
                 const profileValue = user && user.profile ? String(user.profile).toLowerCase() : '';
                 const isAdmin = profileValue === 'admin' || profileValue === 'administrador';
+                const isSupervisor = profileValue === 'supervisor';
 
                 if (isAdmin) {
                     // Administradores veem tudo (com filtros aplicados acima)
@@ -2686,6 +2731,31 @@ app.get('/api/tickets', (req, res) => {
                         if (err) return res.status(500).json({ error: err.message });
                         const formattedRows = rows.map(ticket => ({ ...ticket, formatted_last_message_time: formatLastMessageTime(ticket.last_message_at) }));
                         res.json(formattedRows);
+                    });
+                    return;
+                }
+
+                if (isSupervisor) {
+                    // Supervisores veem apenas tickets das filas atribuídas a eles
+                    db.all('SELECT queue_id FROM user_queues WHERE user_id = ?', [effectiveUserId], (qErr, qRows) => {
+                        if (qErr) return res.status(500).json({ error: qErr.message });
+                        const supervisorQueueIds = qRows ? qRows.map(r => r.queue_id) : [];
+
+                        if (!supervisorQueueIds || supervisorQueueIds.length === 0) {
+                            // Supervisor sem filas atribuídas - não vê nenhum ticket
+                            return res.json([]);
+                        }
+
+                        const queuePlaceholders = supervisorQueueIds.map(() => '?').join(',');
+                        // Supervisor vê todos os tickets das suas filas (independente do agente)
+                        sql += ` AND queue_id IN (${queuePlaceholders})`;
+                        sql += " ORDER BY last_message_at DESC";
+                        
+                        db.all(sql, [...params, ...supervisorQueueIds], (err, rows) => {
+                            if (err) return res.status(500).json({ error: err.message });
+                            const formattedRows = rows.map(ticket => ({ ...ticket, formatted_last_message_time: formatLastMessageTime(ticket.last_message_at) }));
+                            res.json(formattedRows);
+                        });
                     });
                     return;
                 }
@@ -2758,14 +2828,53 @@ app.get('/api/tickets/protocol/:protocolNumber', (req, res) => {
                     return res.json({ id: ticket.id, protocol_number: ticket.protocol_number, contact_name: ticket.contact_name, contact_number: ticket.contact_number, status: ticket.status, has_access: false });
                 }
 
-                // Check if user is admin
+                // Check if user is admin or supervisor
                 db.get('SELECT profile FROM users WHERE id = ?', [effectiveUserId], (profileErr, userProfile) => {
                     if (profileErr) return res.status(500).json({ error: profileErr.message });
-                    const isAdmin = userProfile && (String(userProfile.profile).toLowerCase() === 'admin' || String(userProfile.profile).toLowerCase() === 'administrador');
+                    const profileValue = userProfile && userProfile.profile ? String(userProfile.profile).toLowerCase() : '';
+                    const isAdmin = profileValue === 'admin' || profileValue === 'administrador';
+                    const isSupervisor = profileValue === 'supervisor';
 
-                    // Admin sees everything
+                    // Admin see everything
                     if (isAdmin) {
-                        return res.json({ ...ticket, has_access: true });
+                        // Busca o nome do agente responsável
+                        if (ticket.user_id) {
+                            db.get('SELECT name FROM users WHERE id = ?', [ticket.user_id], (uErr, user) => {
+                                const responsibleAgent = user ? user.name : 'Desconhecido';
+                                return res.json({ ...ticket, responsible_agent: responsibleAgent, has_access: true });
+                            });
+                        } else {
+                            return res.json({ ...ticket, responsible_agent: 'Não atribuído', has_access: true });
+                        }
+                        return;
+                    }
+
+                    // Supervisor precisa verificar as filas
+                    if (isSupervisor) {
+                        db.all('SELECT queue_id FROM user_queues WHERE user_id = ?', [effectiveUserId], (qErr, qRows) => {
+                            if (qErr) return res.status(500).json({ error: qErr.message });
+                            const supervisorQueueIds = qRows ? qRows.map(r => r.queue_id) : [];
+
+                            // Verifica se o ticket pertence a uma das filas do supervisor
+                            if (ticket.queue_id && supervisorQueueIds.includes(ticket.queue_id)) {
+                                // Supervisor tem acesso - busca nome do agente
+                                if (ticket.user_id) {
+                                    db.get('SELECT name FROM users WHERE id = ?', [ticket.user_id], (uErr, user) => {
+                                        const responsibleAgent = user ? user.name : 'Desconhecido';
+                                        return res.json({ ...ticket, responsible_agent: responsibleAgent, has_access: true });
+                                    });
+                                } else {
+                                    return res.json({ ...ticket, responsible_agent: 'Não atribuído', has_access: true });
+                                }
+                            } else {
+                                // Supervisor não tem acesso a esta fila
+                                db.get('SELECT name FROM users WHERE id = ?', [ticket.user_id], (uErr, user) => {
+                                    const responsibleAgent = user ? user.name : 'Desconhecido';
+                                    return res.json({ id: ticket.id, protocol_number: ticket.protocol_number, contact_name: ticket.contact_name, contact_number: ticket.contact_number, status: ticket.status, responsible_agent: responsibleAgent, has_access: false });
+                                });
+                            }
+                        });
+                        return;
                     }
 
                     // Check if ticket is assigned to this user
@@ -2815,14 +2924,72 @@ app.get('/api/tickets/protocol/:protocolNumber', (req, res) => {
                 return res.json(result);
             }
 
-            // Check if user is admin
+            // Check if user is admin or supervisor
             db.get('SELECT profile FROM users WHERE id = ?', [effectiveUserId], (profileErr, userProfile) => {
                 if (profileErr) return res.status(500).json({ error: profileErr.message });
-                const isAdmin = userProfile && (String(userProfile.profile).toLowerCase() === 'admin' || String(userProfile.profile).toLowerCase() === 'administrador');
+                const profileValue = userProfile && userProfile.profile ? String(userProfile.profile).toLowerCase() : '';
+                const isAdmin = profileValue === 'admin' || profileValue === 'administrador';
+                const isSupervisor = profileValue === 'supervisor';
 
-                // Admin sees everything
+                // Admin see everything
                 if (isAdmin) {
-                    return res.json(rows.map(t => ({ ...t, has_access: true })));
+                    // Busca os nomes dos agentes responsáveis para todos os tickets
+                    const processed = [];
+                    let pending = rows.length;
+                    
+                    if (rows.length === 0) return res.json([]);
+                    
+                    rows.forEach(t => {
+                        if (t.user_id) {
+                            db.get('SELECT name FROM users WHERE id = ?', [t.user_id], (uErr, user) => {
+                                const responsibleAgent = user ? user.name : 'Desconhecido';
+                                processed.push({ ...t, responsible_agent: responsibleAgent, has_access: true });
+                                if (--pending === 0) return res.json(processed);
+                            });
+                        } else {
+                            processed.push({ ...t, responsible_agent: 'Não atribuído', has_access: true });
+                            if (--pending === 0) return res.json(processed);
+                        }
+                    });
+                    return;
+                }
+
+                // Supervisor precisa verificar as filas
+                if (isSupervisor) {
+                    db.all('SELECT queue_id FROM user_queues WHERE user_id = ?', [effectiveUserId], (qErr, qRows) => {
+                        if (qErr) return res.status(500).json({ error: qErr.message });
+                        const supervisorQueueIds = qRows ? qRows.map(r => r.queue_id) : [];
+
+                        const processed = [];
+                        let pending = rows.length;
+                        
+                        if (rows.length === 0) return res.json([]);
+                        
+                        rows.forEach(t => {
+                            // Verifica se o ticket pertence a uma das filas do supervisor
+                            const hasAccess = t.queue_id && supervisorQueueIds.includes(t.queue_id);
+                            
+                            if (t.user_id) {
+                                db.get('SELECT name FROM users WHERE id = ?', [t.user_id], (uErr, user) => {
+                                    const responsibleAgent = user ? user.name : 'Desconhecido';
+                                    if (hasAccess) {
+                                        processed.push({ ...t, responsible_agent: responsibleAgent, has_access: true });
+                                    } else {
+                                        processed.push({ id: t.id, protocol_number: t.protocol_number, contact_name: t.contact_name, contact_number: t.contact_number, status: t.status, responsible_agent: responsibleAgent, has_access: false });
+                                    }
+                                    if (--pending === 0) return res.json(processed);
+                                });
+                            } else {
+                                if (hasAccess) {
+                                    processed.push({ ...t, responsible_agent: 'Não atribuído', has_access: true });
+                                } else {
+                                    processed.push({ id: t.id, protocol_number: t.protocol_number, contact_name: t.contact_name, contact_number: t.contact_number, status: t.status, responsible_agent: 'Não atribuído', has_access: false });
+                                }
+                                if (--pending === 0) return res.json(processed);
+                            }
+                        });
+                    });
+                    return;
                 }
 
                 // Resolve user's queues once to evaluate access per ticket
@@ -2876,18 +3043,20 @@ app.get('/api/tickets/:id/messages', (req, res) => {
 
             // Helper to continue permission checks and fetch messages
             function continueWithTicket(localTicket) {
-                // Verifica se o usuário é Admin - Admin tem acesso a tudo
+                // Verifica se o usuário é Admin ou Supervisor - têm acesso a tudo
                 if (effectiveUserId) {
                     db.get('SELECT profile FROM users WHERE id = ?', [effectiveUserId], (profErr, userProfile) => {
                         if (profErr) return res.status(500).json({ error: profErr.message });
-                        const isAdmin = userProfile && (String(userProfile.profile).toLowerCase() === 'admin' || String(userProfile.profile).toLowerCase() === 'administrador');
+                        const profileValue = userProfile && userProfile.profile ? String(userProfile.profile).toLowerCase() : '';
+                        const isAdmin = profileValue === 'admin' || profileValue === 'administrador';
+                        const isSupervisor = profileValue === 'supervisor';
                         
-                        if (isAdmin) {
-                            // Admin tem acesso total
+                        if (isAdmin || isSupervisor) {
+                            // Admin e Supervisor têm acesso total
                             return fetchMessages();
                         }
                         
-                        // Para não-admin: se o ticket estiver atribuído a outro agente, negar acesso ao chat
+                        // Para não-admin/não-supervisor: se o ticket estiver atribuído a outro agente, negar acesso ao chat
                         if (localTicket.user_id && localTicket.user_id != effectiveUserId) {
                             return res.status(403).json({ error: 'Você não tem permissão para acessar este histórico.' });
                         } else {
@@ -3273,14 +3442,17 @@ app.put('/api/tickets/:id/status', (req, res) => {
     db.run(sql, params, function(err) {
         if (err) return res.status(500).json({ error: err.message });
         logger.info(`Ticket ${id} atualizado -> status=${status} user_id=${user_id || 'N/A'} queue_id=${queue_id || 'N/A'} on_hold=${typeof on_hold !== 'undefined' ? on_hold : '(mantido ou reset se attending)'}`);
-        io.emit('ticket_update', { id: id, status: status });
+        // Emit update including assigned user when available
+        const emitPayload = { id: id, status: status };
+        if (user_id) emitPayload.user_id = user_id;
+        io.emit('ticket_update', emitPayload);
         res.json({ message: "Status do ticket atualizado com sucesso." });
         // Se status for 'resolved', enviar mensagem de despedida pelo Bot (rota alternativa)
         if (status === 'resolved') {
             (async () => {
                 try {
                     const ticketRow = await new Promise((resolve, reject) => {
-                        db.get('SELECT contact_number, connection_id FROM tickets WHERE id = ?', [id], (err, row) => {
+                        db.get('SELECT contact_number, connection_id, queue_id, user_id FROM tickets WHERE id = ?', [id], (err, row) => {
                             if (err) return reject(err);
                             resolve(row || null);
                         });
@@ -3332,7 +3504,7 @@ app.put('/api/tickets/:id/status', (req, res) => {
                         const sentAt = getLocalDateTime();
                         db.run('INSERT INTO messages (ticket_id, body, sender, timestamp) VALUES (?, ?, ?, ?)', [id, farewell, 'bot', sentAt], function(saveErr) {
                             if (saveErr) logger.warn(`Falha ao salvar mensagem de despedida (rota simples) para ticket ${id}: ${saveErr.message}`);
-                            else io.emit('new-message', { id: this.lastID, ticket_id: id, body: farewell, sender: 'bot', timestamp: sentAt });
+                            else io.emit('new-message', { id: this.lastID, ticket_id: id, body: farewell, sender: 'bot', timestamp: sentAt, queue_id: ticketRow.queue_id, ticket_user_id: ticketRow.user_id });
                         });
                         return;
                     }
@@ -3343,14 +3515,14 @@ app.put('/api/tickets/:id/status', (req, res) => {
                         const sentAt = getLocalDateTime();
                         db.run('INSERT INTO messages (ticket_id, body, sender, timestamp, sent_via_whatsapp, wa_message_id, delivered) VALUES (?, ?, ?, ?, ?, ?, ?)', [id, farewell, 'bot', sentAt, 1, waId, 0], function(saveErr) {
                             if (saveErr) logger.warn(`Falha ao salvar mensagem de despedida (rota simples) para ticket ${id}: ${saveErr.message}`);
-                            else io.emit('new-message', { id: this.lastID, ticket_id: id, body: farewell, sender: 'bot', timestamp: sentAt, sent_via_whatsapp: 1, wa_message_id: waId, delivered: 0 });
+                            else io.emit('new-message', { id: this.lastID, ticket_id: id, body: farewell, sender: 'bot', timestamp: sentAt, sent_via_whatsapp: 1, wa_message_id: waId, delivered: 0, queue_id: ticketRow.queue_id, ticket_user_id: ticketRow.user_id });
                         });
                     } catch (sendErr) {
                         logger.error(`Erro ao enviar mensagem de despedida via WhatsApp (rota simples) para ticket ${id}: ${sendErr && sendErr.message}`);
                         const sentAt = getLocalDateTime();
                         db.run('INSERT INTO messages (ticket_id, body, sender, timestamp) VALUES (?, ?, ?, ?)', [id, farewell, 'bot', sentAt], function(saveErr) {
                             if (saveErr) logger.warn(`Falha ao salvar mensagem de despedida após erro de envio (rota simples) para ticket ${id}: ${saveErr.message}`);
-                            else io.emit('new-message', { id: this.lastID, ticket_id: id, body: farewell, sender: 'bot', timestamp: sentAt });
+                            else io.emit('new-message', { id: this.lastID, ticket_id: id, body: farewell, sender: 'bot', timestamp: sentAt, queue_id: ticketRow.queue_id, ticket_user_id: ticketRow.user_id });
                         });
                     }
                 } catch (e) {
@@ -3807,15 +3979,22 @@ app.post('/api/send-file', upload.single('file'), async (req, res) => {
                             return res.status(500).json({ error: 'Erro ao salvar mensagem.' });
                         }
                         const messageId = this.lastID;
-                        // Emite via Socket.IO para atualizar em tempo real
-                        io.emit('new-message', {
-                            id: messageId,
-                            ticket_id: ticketId,
-                            body: messageText,
-                            sender: 'bot',
-                            user_id: userId || null,
-                            user_name: userDisplay,
-                            timestamp: timestamp
+                        // Busca queue_id e user_id do ticket para incluir no evento
+                        db.get('SELECT queue_id, user_id FROM tickets WHERE id = ?', [ticketId], (tErr, ticketInfo) => {
+                            const ticketQueueId = ticketInfo && ticketInfo.queue_id ? ticketInfo.queue_id : null;
+                            const ticketUserId = ticketInfo && ticketInfo.user_id ? ticketInfo.user_id : null;
+                            // Emite via Socket.IO para atualizar em tempo real
+                            io.emit('new-message', {
+                                id: messageId,
+                                ticket_id: ticketId,
+                                body: messageText,
+                                sender: 'bot',
+                                user_id: userId || null,
+                                user_name: userDisplay,
+                                timestamp: timestamp,
+                                queue_id: ticketQueueId,
+                                ticket_user_id: ticketUserId
+                            });
                         });
                         logger.info(`Arquivo registrado no chat para ticket ${ticketId}: ${req.file.originalname}, user: ${userDisplay}`);
                         res.json({ 
@@ -5703,7 +5882,9 @@ app.post('/api/contacts/:id(\\d+)/initiate-ticket', (req, res) => {
                                 ticket_id: newTicketId,
                                 body: '[Atendimento iniciado manualmente]',
                                 sender: 'system',
-                                timestamp: messageTime
+                                timestamp: messageTime,
+                                queue_id: queueId || null,
+                                ticket_user_id: userId || null
                             });
                         }
                     }
@@ -5768,6 +5949,7 @@ app.post('/api/login', (req, res) => {
             db.run(insertSessionSql, [user.id, sessionToken], (sessionErr) => {
                 if (sessionErr) {
                     logger.error(`Erro ao criar sessão: ${sessionErr.message}`);
+                    return res.status(500).json({ error: 'Erro interno do servidor' });
                 }
                 
                 res.status(200).json({ 

@@ -255,25 +255,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const notificationAguardando = document.getElementById('notification-aguardando');
     const tabAguardando = document.getElementById('tab-aguardando');
     const tabAtendendo = document.getElementById('tab-atendendo');
-    // Notificações (ícone no cabeçalho)
-    const notificationsBadge = document.getElementById('notifications-badge');
-    const notificationsList = document.getElementById('notifications-list');
-    // contador persistido de notificações não lidas
-    let notificationsCount = Number(localStorage.getItem('appNotificationsCount') || 0) || 0;
+    const notificationAtendendo = document.getElementById('notification-atendendo');
     // Filtro de filas selecionadas pelo agente (array de ids). Se null -> usar currentUser.queue_ids (padrão)
     let selectedQueueFilters = null;
-
-    function renderNotificationsBadge() {
-        try {
-            if (!notificationsBadge) return;
-            if (notificationsCount > 0) {
-                notificationsBadge.textContent = notificationsCount > 99 ? '99+' : String(notificationsCount);
-                notificationsBadge.classList.remove('d-none');
-            } else {
-                notificationsBadge.classList.add('d-none');
-            }
-        } catch (e) { console.warn('Erro ao renderizar notifications badge', e); }
-    }
 
     // Popula o dropdown de filtro de filas ao lado do botão "Filas"
     async function populateTicketQueueFilterList() {
@@ -285,6 +269,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const resp = await fetch('/api/queues');
             if (!resp.ok) return;
             const queues = await resp.json();
+            
+            // Atualiza o mapa de cores e nomes (global)
+            try {
+                queueColorMap = {};
+                queueNameMap = {};
+                queues.forEach(q => {
+                    if (q && typeof q.id !== 'undefined') {
+                        queueColorMap[String(q.id)] = q.color || null;
+                        queueNameMap[String(q.id)] = q.name || '';
+                    }
+                });
+            } catch (e) { 
+                queueColorMap = {}; 
+                queueNameMap = {};
+            }
 
             // Determina quais filas este agente pode ver no filtro
             let visibleQueues = queues;
@@ -367,6 +366,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 // limpar checks
                 container.querySelectorAll('.ticket-queue-filter-checkbox').forEach(ch => ch.checked = false);
                 localStorage.removeItem('ticketQueueFilters');
+                // atualiza label imediatamente
+                updateQueueFilterButtonLabel();
                 loadTickets();
             });
             if (btnApply) btnApply.addEventListener('click', (e) => {
@@ -374,6 +375,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const picks = Array.from(container.querySelectorAll('.ticket-queue-filter-checkbox:checked')).map(i => Number(i.value));
                 selectedQueueFilters = picks;
                 try { localStorage.setItem('ticketQueueFilters', JSON.stringify(selectedQueueFilters)); } catch(e){}
+                // atualiza label imediatamente
+                updateQueueFilterButtonLabel();
                 loadTickets();
             });
 
@@ -387,6 +390,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Mapa de cores das filas carregadas (id -> color)
     let queueColorMap = {};
+    let queueNameMap = {};
 
     function updateQueueFilterButtonLabel() {
         try {
@@ -399,53 +403,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (e) { /* ignore */ }
     }
-
-    function setNotificationsCount(n) {
-        notificationsCount = Math.max(0, Number(n) || 0);
-        try { localStorage.setItem('appNotificationsCount', String(notificationsCount)); } catch(e){}
-        renderNotificationsBadge();
-    }
-
-    function addNotificationItem(data) {
-        try {
-            if (!notificationsList) return;
-            const li = document.createElement('li');
-            li.className = 'dropdown-item notification-item d-flex justify-content-between align-items-start';
-            li.setAttribute('data-ticket-id', data.ticket_id);
-            // Tenta pegar o nome do ticket já renderizado na lista lateral, se disponível
-            let contactName = 'Novo contato';
-            try {
-                const ticketEl = ticketListContainer.querySelector(`[data-ticket-id='${data.ticket_id}']`);
-                if (ticketEl) {
-                    const h6 = ticketEl.querySelector('h6');
-                    if (h6) contactName = h6.textContent.trim();
-                }
-            } catch (e) { /* ignore */ }
-
-            const snippet = (data.body || '').slice(0, 80).replace(/\s+/g, ' ');
-            li.innerHTML = `<div class="flex-grow-1"><strong class="d-block">${contactName}</strong><div class="small text-muted">${snippet}</div></div><small class="text-muted ms-2">${new Date(data.timestamp || Date.now()).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}</small>`;
-            // Insere no topo
-            notificationsList.insertBefore(li, notificationsList.firstChild);
-        } catch (e) { console.warn('Falha ao adicionar item de notificação', e); }
-    }
-
-    function clearNotificationsForTicket(ticketId) {
-        try {
-            if (!notificationsList) return;
-            const items = Array.from(notificationsList.querySelectorAll('.notification-item'));
-            let removed = 0;
-            items.forEach(it => {
-                if (it.getAttribute('data-ticket-id') === String(ticketId)) {
-                    it.remove();
-                    removed++;
-                }
-            });
-            if (removed > 0) setNotificationsCount(Math.max(0, notificationsCount - removed));
-        } catch (e) { console.warn('Falha ao limpar notificações por ticket', e); }
-    }
-
-    // Inicial render do badge
-    renderNotificationsBadge();
 
     // Inicializa filtro de filas no dropdown
     try { populateTicketQueueFilterList(); } catch(e) { console.warn('Erro ao inicializar filtro de filas', e); }
@@ -566,13 +523,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Quando o usuário abre a dropdown de notificações (clica no ícone), marca como vistas
     try {
-        const notifBtn = document.getElementById('notifications-dropdown');
-        if (notifBtn) {
-            notifBtn.addEventListener('click', (e) => {
-                // Reseta contador ao abrir a dropdown (comportamento desejado para vistas)
-                setTimeout(() => setNotificationsCount(0), 150);
-            });
-        }
     } catch (e) { /* ignore */ }
     const navContatos = document.getElementById('nav-contatos');
     const navResolved = document.getElementById('nav-resolved');
@@ -1282,11 +1232,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // Helper para construir parâmetros de usuário (user_id + queue_ids) de forma consistente
     function buildUserParams() {
-        if (currentUser && currentUser.id && currentUser.queue_ids && currentUser.queue_ids.length > 0) {
-            return `&user_id=${currentUser.id}&queue_ids=${currentUser.queue_ids.join(',')}`;
-        }
         if (currentUser && currentUser.id) {
-            return `&user_id=${currentUser.id}`;
+            let effectiveQueueIds = null;
+            if (Array.isArray(selectedQueueFilters) && selectedQueueFilters.length > 0) {
+                effectiveQueueIds = selectedQueueFilters.map(v => Number(v));
+            } else if (currentUser.queue_ids && currentUser.queue_ids.length > 0) {
+                effectiveQueueIds = currentUser.queue_ids.map(v => Number(v));
+            }
+            let params = `&user_id=${currentUser.id}`;
+            if (effectiveQueueIds && effectiveQueueIds.length > 0) {
+                params += `&queue_ids=${effectiveQueueIds.join(',')}`;
+            }
+            return params;
         }
         return '';
     }
@@ -1950,6 +1907,38 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Função auxiliar para atualizar o contador da aba Atendendo sem recarregar tickets
+    async function updateAtendendoCounter() {
+        if (!notificationAtendendo) return;
+        try {
+            let userParams = '';
+            let effectiveQueueIds = null;
+            if (Array.isArray(selectedQueueFilters) && selectedQueueFilters.length > 0) {
+                effectiveQueueIds = selectedQueueFilters;
+            } else if (currentUser && currentUser.id && currentUser.queue_ids && currentUser.queue_ids.length > 0) {
+                effectiveQueueIds = currentUser.queue_ids.map(v => Number(v));
+            }
+            if (effectiveQueueIds && effectiveQueueIds.length > 0) {
+                userParams = `&user_id=${currentUser.id}&queue_ids=${effectiveQueueIds.join(',')}`;
+            }
+            
+            const response = await fetch(`/api/tickets?status=attending${userParams}`);
+            if (!response.ok) return;
+            const tickets = await response.json();
+            
+            const atendendoCount = Array.isArray(tickets) ? tickets.length : 0;
+            if (atendendoCount > 0) {
+                notificationAtendendo.textContent = atendendoCount;
+                notificationAtendendo.classList.remove('d-none');
+            } else {
+                notificationAtendendo.textContent = '';
+                notificationAtendendo.classList.add('d-none');
+            }
+        } catch (e) {
+            console.warn('Erro ao atualizar contador atendendo:', e);
+        }
+    }
+
     // Carrega e renderiza os tickets
     async function loadTickets() {
         // Coalesce concurrent calls: se já existe uma chamada em andamento, retornamos a mesma promise.
@@ -1960,6 +1949,18 @@ document.addEventListener('DOMContentLoaded', () => {
         loadTickets._inFlight = (async () => {
             console.log('loadTickets called with currentTicketStatus:', currentTicketStatus, 'currentTicketView:', currentTicketView);
             try {
+            // Verifica se o agente tem permissão para visualizar tickets
+            if (currentUser && currentUser.profile !== 'admin' && currentUser.profile !== 'supervisor') {
+                if (!currentUser.queue_ids || currentUser.queue_ids.length === 0) {
+                    // Agente sem fila não pode visualizar tickets
+                    noTicketsMessage.classList.remove('d-none');
+                    noTicketsMessage.innerHTML = '<div class="alert alert-warning"><h6>Acesso Negado</h6><p>Você não está associado a nenhuma fila. Entre em contato com o administrador para atribuir filas ao seu perfil.</p></div>';
+                    ticketListContainer.innerHTML = '';
+                    ticketListContainer.classList.add('d-none');
+                    return;
+                }
+            }
+            
             // Preparar parâmetros de filtro
             let userParams = '';
             // Prioridade: se o agente selecionou filtros específicos (selectedQueueFilters), usa-os.
@@ -2022,11 +2023,39 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 } else {
                     // resolved ou outras futuras
-                    const response = await fetch(`/api/tickets?status=${currentTicketView}${userParams}`);
+                    // Para tickets concluídos, apenas admin e supervisor veem todos
+                    // Usuários comuns veem apenas seus próprios tickets
+                    let resolvedParams = '';
+                    if (currentTicketView === 'resolved') {
+                        const isPrivileged = currentUser && (
+                            String(currentUser.profile).toLowerCase() === 'admin' || 
+                            String(currentUser.profile).toLowerCase() === 'administrador' ||
+                            String(currentUser.profile).toLowerCase() === 'supervisor'
+                        );
+                        
+                        if (!isPrivileged && currentUser && currentUser.id) {
+                            // Usuário comum: filtra apenas seus próprios tickets concluídos
+                            resolvedParams = `&user_id=${currentUser.id}`;
+                            console.log('[loadTickets-RESOLVED] Usuário comum - params:', resolvedParams);
+                        } else {
+                            // Admin/Supervisor: vê TODOS os tickets concluídos (SEM FILTRO ALGUM)
+                            resolvedParams = '';
+                        }
+                    } else {
+                        // Para outras views que não são 'resolved', usa os parâmetros normais
+                        resolvedParams = userParams;
+                    }
+                    
+                    // Adiciona sessionToken para autenticação
+                    const sessionTokenParam = sessionToken ? `&sessionToken=${sessionToken}` : '';
+                    const finalUrl = `/api/tickets?status=${currentTicketView}${resolvedParams}${sessionTokenParam}`;
+                    
+                    const response = await fetch(finalUrl);
                     if (!response.ok) throw new Error('Falha ao carregar os tickets');
                     const subTabsContainer = document.getElementById('inbox-subtabs-container');
                     if (subTabsContainer) subTabsContainer.classList.remove('d-none');
                     const tickets = await response.json();
+                    
                     renderTicketList(tickets);
                     return;
                 }
@@ -2053,6 +2082,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 const onHoldTickets = await pendingOnHoldResp.json();
                 updatePendingSidebarBadge(onHoldTickets.length);
 
+            // Atualiza o contador da aba Atendendo
+            if (notificationAtendendo) {
+                // Filtra tickets com status 'attending', 'atendendo' ou similares
+                const atendendoCount = Array.isArray(tickets)
+                    ? tickets.filter(t => ['attending', 'atendendo'].includes(String(t.status).toLowerCase())).length
+                    : 0;
+                if (atendendoCount > 0) {
+                    notificationAtendendo.textContent = atendendoCount;
+                    notificationAtendendo.classList.remove('d-none');
+                } else {
+                    notificationAtendendo.textContent = '';
+                    notificationAtendendo.classList.add('d-none');
+                }
+            }
             renderTicketList(tickets);
             return;
         } catch (error) {
@@ -2071,16 +2114,53 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Função auxiliar para renderizar a lista de tickets
     function renderTicketList(tickets) {
+        // Carrega badges do localStorage
+        let unreadBadges = {};
+        try {
+            const saved = localStorage.getItem('ticketUnreadBadges');
+            if (saved) {
+                unreadBadges = JSON.parse(saved);
+            }
+        } catch (e) { console.warn('Erro ao carregar badges do localStorage:', e); }
+        
+        // Salva o estado dos badges atuais antes de limpar
+        try {
+            const existingTickets = ticketListContainer.querySelectorAll('[data-ticket-id]');
+            existingTickets.forEach(ticketEl => {
+                const ticketId = ticketEl.getAttribute('data-ticket-id');
+                const badgeEl = ticketEl.querySelector('.badge.bg-success.rounded-pill');
+                if (badgeEl && badgeEl.textContent) {
+                    unreadBadges[ticketId] = badgeEl.textContent;
+                }
+            });
+        } catch (e) { console.warn('Erro ao salvar badges:', e); }
+        
         ticketListContainer.innerHTML = ''; // Limpa a lista
         
-        // Filtra tickets concluídos de outros agentes
-        const filteredTickets = tickets.filter(ticket => {
+        // Verifica se é Admin ou Supervisor
+        const isPrivileged = currentUser && (
+            String(currentUser.profile).toLowerCase() === 'admin' || 
+            String(currentUser.profile).toLowerCase() === 'administrador' ||
+            String(currentUser.profile).toLowerCase() === 'supervisor'
+        );
+        
+        // Filtra tickets concluídos de outros agentes (apenas para usuários comuns)
+        let filteredTickets = tickets.filter(ticket => {
+            // Admin e Supervisor veem todos os tickets
+            if (isPrivileged) {
+                return true;
+            }
             // Se o ticket está concluído e pertence a outro agente, não mostra
             if (ticket.status === 'resolved' && ticket.user_id && ticket.user_id !== currentUser.id) {
                 return false;
             }
             return true;
         });
+        // Aplica filtro por filas selecionadas (UI) se houver seleção
+        if (Array.isArray(selectedQueueFilters) && selectedQueueFilters.length > 0) {
+            const setFilter = new Set(selectedQueueFilters.map(v => Number(v)));
+            filteredTickets = filteredTickets.filter(t => setFilter.has(Number(t.queue_id)));
+        }
         
         if (filteredTickets.length === 0) {
             noTicketsMessage.classList.remove('d-none');
@@ -2093,6 +2173,25 @@ document.addEventListener('DOMContentLoaded', () => {
             // scroll do contêiner (`#ticket-list`) para navegar.
             // Isso remove a paginação numérica e permite busca via scrollbar.
             filteredTickets.forEach(renderTicketItem);
+            
+            // Restaura os badges salvos
+            try {
+                Object.keys(unreadBadges).forEach(ticketId => {
+                    const ticketEl = ticketListContainer.querySelector(`[data-ticket-id='${ticketId}']`);
+                    if (ticketEl) {
+                        const protocolEl = ticketEl.querySelector('.ticket-info-content p.text-primary');
+                        if (protocolEl && !protocolEl.querySelector('.badge.bg-success.rounded-pill')) {
+                            const badgeEl = document.createElement('span');
+                            badgeEl.className = 'badge bg-success rounded-pill position-absolute top-0 start-100 translate-middle ms-1';
+                            badgeEl.style.fontSize = '0.65rem';
+                            badgeEl.textContent = unreadBadges[ticketId];
+                            protocolEl.appendChild(badgeEl);
+                        }
+                    }
+                });
+                // Salva no localStorage
+                localStorage.setItem('ticketUnreadBadges', JSON.stringify(unreadBadges));
+            } catch (e) { console.warn('Erro ao restaurar badges:', e); }
 
             // Ajusta dinamicamente a altura máxima do contêiner para
             // exibir 6 tickets visíveis e deixar o restante rolável.
@@ -2236,19 +2335,30 @@ document.addEventListener('DOMContentLoaded', () => {
         let ticketHTML = '';
         // Não mostra botão aceitar para tickets concluídos
         if (ticket.status === 'resolved') {
+            // Obtém o nome e cor da fila
+            const queueName = ticket.queue_id && queueNameMap[String(ticket.queue_id)] ? queueNameMap[String(ticket.queue_id)] : '';
+            const queueColor = ticket.queue_id && queueColorMap[String(ticket.queue_id)] ? queueColorMap[String(ticket.queue_id)] : '#6c757d';
+            
             ticketHTML = `
                 <div class="ticket-info-content">
                     <div class="d-flex w-100 justify-content-between">
                         <h6 class="mb-1 text-truncate">${ticket.contact_name}</h6>
                         <small class="text-muted">${displayTime}</small>
                     </div>
-                    ${ticket.protocol_number ? `<p class="mb-0 small text-primary position-relative d-inline-block"><i class="bi bi-file-earmark-text me-1"></i><strong>Protocolo:</strong> ${ticket.protocol_number}${ticket.unread_messages > 0 ? `<span class="badge bg-success rounded-pill position-absolute top-0 start-100 translate-middle ms-1" style="font-size: 0.65rem;">${ticket.unread_messages}</span>` : ''}</p>` : ''}
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        ${ticket.protocol_number ? `<p class="mb-0 small text-primary position-relative d-inline-block"><i class="bi bi-file-earmark-text me-1"></i><strong>Protocolo:</strong> ${ticket.protocol_number}${ticket.unread_messages > 0 ? `<span class="badge bg-success rounded-pill position-absolute top-0 start-100 translate-middle ms-1" style="font-size: 0.65rem;">${ticket.unread_messages}</span>` : ''}</p>` : ''}
+                        ${queueName ? `<span class="badge" style="background-color: ${queueColor}; font-size: 0.65rem; padding: 0.25rem 0.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.15);">${queueName}</span>` : ''}
+                    </div>
                     <p class="mb-1 small text-muted text-truncate">${ticket.last_message}</p>
                 </div>
                 <!-- Barra de Status Colorida -->
                 <div class="ticket-status-bar" style="background-color: ${stripeColor};"></div>
             `;
         } else if (effectiveStatus === 'pending' && (ticket.is_on_hold === 0 || ticket.is_on_hold === null || ticket.is_on_hold === undefined)) {
+            // Obtém o nome e cor da fila
+            const queueName = ticket.queue_id && queueNameMap[String(ticket.queue_id)] ? queueNameMap[String(ticket.queue_id)] : '';
+            const queueColor = ticket.queue_id && queueColorMap[String(ticket.queue_id)] ? queueColorMap[String(ticket.queue_id)] : '#6c757d';
+            
             // Botão Aceitar flutuando centralizado no topo do ticket, badge ao lado
             ticketHTML = `
                 <div class="ticket-info-content position-relative">
@@ -2256,7 +2366,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         <h6 class="mb-1 text-truncate">${ticket.contact_name}</h6>
                         <small class="text-muted">${displayTime}</small>
                     </div>
-                    ${ticket.protocol_number ? `<p class="mb-0 small text-primary position-relative d-inline-block"><i class="bi bi-file-earmark-text me-1"></i><strong>Protocolo:</strong> ${ticket.protocol_number}${ticket.unread_messages > 0 ? `<span class="badge bg-success rounded-pill position-absolute top-0 start-100 translate-middle ms-1" style="font-size: 0.65rem;">${ticket.unread_messages}</span>` : ''}</p>` : ''}
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        ${ticket.protocol_number ? `<p class="mb-0 small text-primary position-relative d-inline-block"><i class="bi bi-file-earmark-text me-1"></i><strong>Protocolo:</strong> ${ticket.protocol_number}${ticket.unread_messages > 0 ? `<span class="badge bg-success rounded-pill position-absolute top-0 start-100 translate-middle ms-1" style="font-size: 0.65rem;">${ticket.unread_messages}</span>` : ''}</p>` : ''}
+                        ${queueName ? `<span class="badge" style="background-color: ${queueColor}; font-size: 0.65rem; padding: 0.25rem 0.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.15);">${queueName}</span>` : ''}
+                    </div>
                     <p class="mb-1 small text-muted text-truncate">${ticket.last_message}</p>
                     <div class="position-absolute top-0 start-50 translate-middle-x mt-2 d-flex align-items-center" style="z-index:2;">
                         <button class="btn btn-sm btn-primary accept-ticket-btn" title="Aceitar atendimento">Aceitar</button>
@@ -2266,13 +2379,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="ticket-status-bar" style="background-color: ${stripeColor};"></div>
             `;
         } else {
+            // Obtém o nome e cor da fila
+            const queueName = ticket.queue_id && queueNameMap[String(ticket.queue_id)] ? queueNameMap[String(ticket.queue_id)] : '';
+            const queueColor = ticket.queue_id && queueColorMap[String(ticket.queue_id)] ? queueColorMap[String(ticket.queue_id)] : '#6c757d';
+            
             ticketHTML = `
                 <div class="ticket-info-content">
                     <div class="d-flex w-100 justify-content-between">
                         <h6 class="mb-1 text-truncate">${ticket.contact_name}</h6>
                         <small class="text-muted">${displayTime}</small>
                     </div>
-                    ${ticket.protocol_number ? `<p class="mb-0 small text-primary position-relative d-inline-block"><i class="bi bi-file-earmark-text me-1"></i><strong>Protocolo:</strong> ${ticket.protocol_number}${ticket.unread_messages > 0 ? `<span class="badge bg-success rounded-pill position-absolute top-0 start-100 translate-middle ms-1" style="font-size: 0.65rem;">${ticket.unread_messages}</span>` : ''}</p>` : ''}
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        ${ticket.protocol_number ? `<p class="mb-0 small text-primary position-relative d-inline-block"><i class="bi bi-file-earmark-text me-1"></i><strong>Protocolo:</strong> ${ticket.protocol_number}${ticket.unread_messages > 0 ? `<span class="badge bg-success rounded-pill position-absolute top-0 start-100 translate-middle ms-1" style="font-size: 0.65rem;">${ticket.unread_messages}</span>` : ''}</p>` : ''}
+                        ${queueName ? `<span class="badge" style="background-color: ${queueColor}; font-size: 0.65rem; padding: 0.25rem 0.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.15);">${queueName}</span>` : ''}
+                    </div>
                     <p class="mb-1 small text-muted text-truncate">${ticket.last_message}</p>
                 </div>
                 <!-- Barra de Status Colorida -->
@@ -2346,6 +2466,11 @@ document.addEventListener('DOMContentLoaded', () => {
             // Preparar dados para enviar
             const updateData = { status: 'attending' };
             
+            // Adiciona sessionToken para autenticação
+            if (sessionToken) {
+                updateData.sessionToken = sessionToken;
+            }
+            
             // Se tiver usuário logado, adiciona user_id e queue_id
             if (currentUser && currentUser.id) {
                 updateData.user_id = currentUser.id;
@@ -2381,10 +2506,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!activeTicketId) return;
 
         try {
+            const updateData = { status: 'resolved' };
+            if (sessionToken) {
+                updateData.sessionToken = sessionToken;
+            }
+            
             const response = await fetch(`/api/tickets/${activeTicketId}/status`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: 'resolved' })
+                body: JSON.stringify(updateData)
             });
             if (!response.ok) {
                 throw new Error('Falha ao resolver o ticket.');
@@ -2396,6 +2526,8 @@ document.addEventListener('DOMContentLoaded', () => {
             activeTicketId = null;
             await refreshTicketIndicators();
             persistState();
+            // Atualiza o contador da aba Atendendo
+            updateAtendendoCounter();
             // A notificação do WebSocket já chama updateDashboardStats(), mas podemos forçar aqui para garantir.
         } catch (error) {
             console.error('Erro ao resolver ticket:', error);
@@ -2412,10 +2544,15 @@ async function reopenTicket() {
     }
 
     try {
+        const updateData = { status: 'pending', on_hold: true };
+        if (sessionToken) {
+            updateData.sessionToken = sessionToken;
+        }
+        
         const response = await fetch(`/api/tickets/${activeTicketId}/status`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: 'pending', on_hold: true })
+            body: JSON.stringify(updateData)
         });
 
         if (!response.ok) {
@@ -2432,6 +2569,8 @@ async function reopenTicket() {
         chatWelcomeMessage.classList.remove('d-none');
         activeTicketId = null;
 
+        // Atualiza o contador da aba Atendendo
+        updateAtendendoCounter();
         // Não navega automaticamente para a lista PENDENTE; apenas atualiza indicadores
         await loadTickets();
     } catch (error) {
@@ -2465,6 +2604,7 @@ async function reopenTicket() {
                 activeTicketId = null;
             }
             loadTickets(); // Recarrega a lista de tickets para remover o item excluído
+            updateAtendendoCounter(); // Atualiza o contador da aba Atendendo
         } catch (error) {
             showNotification(`Erro: ${error.message}`, 'danger');
         } finally {
@@ -2573,6 +2713,8 @@ async function reopenTicket() {
                     updatePendingSidebarBadge(onHoldTickets.length);
                 }
             } catch(e) { console.warn('Falha atualização rápida de badges pós-transferência', e); }
+            // Atualiza o contador da aba Atendendo imediatamente
+            updateAtendendoCounter();
             persistState();
 
         } catch (error) {
@@ -2697,6 +2839,13 @@ async function reopenTicket() {
                     badgeEl.remove();
                 }
             }
+            // Remove do localStorage
+            const saved = localStorage.getItem('ticketUnreadBadges');
+            if (saved) {
+                const unreadBadges = JSON.parse(saved);
+                delete unreadBadges[ticketId];
+                localStorage.setItem('ticketUnreadBadges', JSON.stringify(unreadBadges));
+            }
         } catch(e) { console.warn('Erro ao remover badge do ticket ao abrir chat', e); }
 
         try {
@@ -2729,13 +2878,69 @@ async function reopenTicket() {
                 }
             } catch (e) { console.warn('Erro ao buscar detalhes do ticket:', e); }
 
-            // Bloqueia abertura de tickets concluídos (exceto para Admin)
-            if (ticketDetails && ticketDetails.status === 'resolved') {
-                // Verifica se é Admin
-                const isAdmin = currentUser && (String(currentUser.profile).toLowerCase() === 'admin' || String(currentUser.profile).toLowerCase() === 'administrador');
+            // Verifica se supervisor tem acesso à fila do ticket
+            if (ticketDetails && currentUser) {
+                const isSupervisor = String(currentUser.profile).toLowerCase() === 'supervisor';
+                const isAdmin = String(currentUser.profile).toLowerCase() === 'admin' || 
+                               String(currentUser.profile).toLowerCase() === 'administrador';
                 
-                // Admin tem acesso a todos os tickets
-                if (!isAdmin && ticketDetails.user_id && ticketDetails.user_id !== currentUser.id) {
+                if (isSupervisor && !isAdmin) {
+                    // Supervisor precisa estar atribuído à fila do ticket
+                    const ticketQueueId = ticketDetails.queue_id;
+                    const userQueueIds = currentUser.queue_ids || [];
+                    
+                    if (ticketQueueId && !userQueueIds.includes(ticketQueueId)) {
+                        // Supervisor não tem acesso a esta fila
+                        chatBody.innerHTML = `
+                            <div class="alert alert-warning text-center mt-5">
+                                <i class="bi bi-shield-lock fs-1"></i>
+                                <h5 class="mt-3">Acesso Restrito</h5>
+                                <p>Este ticket pertence a uma fila que você não tem acesso.</p>
+                            </div>
+                        `;
+                        
+                        chatContactName.textContent = 'Acesso Restrito';
+                        chatProfilePic.src = 'https://via.placeholder.com/40';
+                        const chatProtocolElement = document.getElementById('chat-protocol-number');
+                        if (chatProtocolElement) chatProtocolElement.classList.add('d-none');
+                        
+                        hideChatPlaceholder();
+                        
+                        // Desabilita tudo
+                        chatMessageInput.disabled = true;
+                        const chatSubmitButton = chatForm.querySelector('button[type="submit"]');
+                        if (chatSubmitButton) chatSubmitButton.disabled = true;
+                        const attachButton = document.getElementById('attach-file-button');
+                        if (attachButton) attachButton.disabled = true;
+                        const recordButton = document.getElementById('record-audio-button');
+                        if (recordButton) recordButton.disabled = true;
+                        const emojiButton = document.getElementById('emoji-button');
+                        if (emojiButton) emojiButton.disabled = true;
+                        
+                        // Esconde todos os botões de ação
+                        resolveTicketButton.classList.add('d-none');
+                        if (reopenTicketButton) reopenTicketButton.classList.add('d-none');
+                        transferTicketButton.classList.add('d-none');
+                        deleteTicketButton.classList.add('d-none');
+                        const continueBtn = document.getElementById('continuar-ticket-button');
+                        if (continueBtn) continueBtn.classList.add('d-none');
+                        
+                        return;
+                    }
+                }
+            }
+
+            // Bloqueia abertura de tickets concluídos (exceto para Admin e Supervisor)
+            if (ticketDetails && ticketDetails.status === 'resolved') {
+                // Verifica se é Admin ou Supervisor
+                const isPrivileged = currentUser && (
+                    String(currentUser.profile).toLowerCase() === 'admin' || 
+                    String(currentUser.profile).toLowerCase() === 'administrador' ||
+                    String(currentUser.profile).toLowerCase() === 'supervisor'
+                );
+                
+                // Admin e Supervisor têm acesso a todos os tickets
+                if (!isPrivileged && ticketDetails.user_id && ticketDetails.user_id !== currentUser.id) {
                     // Outro agente concluiu - acesso negado
                     chatBody.innerHTML = `
                         <div class="alert alert-warning text-center mt-5">
@@ -2782,11 +2987,14 @@ async function reopenTicket() {
                 if (messagesResponse.ok) {
                     const messages = await messagesResponse.json();
                     
-                    // Busca o nome do contato
+                    // Busca o nome do contato do ticket ou da lista
                     const ticketItem = ticketListContainer.querySelector(`[data-ticket-id='${ticketId}']`);
-                    const contactName = ticketItem ? ticketItem.querySelector('h6').textContent : 'Contato';
-                    const profilePicUrl = ticketItem ? ticketItem.getAttribute('data-profile-pic-url') : '';
-                    const protocolNumber = ticketItem ? ticketItem.getAttribute('data-protocol-number') : '';
+                    const contactName = ticketDetails && ticketDetails.contact_name ? ticketDetails.contact_name : 
+                                       (ticketItem ? ticketItem.querySelector('h6').textContent : 'Contato');
+                    const profilePicUrl = ticketDetails && ticketDetails.profile_pic_url ? ticketDetails.profile_pic_url :
+                                         (ticketItem ? ticketItem.getAttribute('data-profile-pic-url') : '');
+                    const protocolNumber = ticketDetails && ticketDetails.protocol_number ? ticketDetails.protocol_number :
+                                          (ticketItem ? ticketItem.getAttribute('data-protocol-number') : '');
 
                     // Atualiza a UI
                     chatContactName.textContent = contactName;
@@ -3274,13 +3482,20 @@ async function reopenTicket() {
             if (!response.ok) throw new Error('Falha ao carregar filas.');
             const queues = await response.json();
             
-            // Atualiza o mapa de cores
+            // Atualiza o mapa de cores e nomes
             try {
                 queueColorMap = {};
+                queueNameMap = {};
                 queues.forEach(q => {
-                    if (q && typeof q.id !== 'undefined') queueColorMap[String(q.id)] = q.color || null;
+                    if (q && typeof q.id !== 'undefined') {
+                        queueColorMap[String(q.id)] = q.color || null;
+                        queueNameMap[String(q.id)] = q.name || '';
+                    }
                 });
-            } catch (e) { queueColorMap = {}; }
+            } catch (e) { 
+                queueColorMap = {}; 
+                queueNameMap = {};
+            }
 
             queuesTableBody.innerHTML = ''; // Limpa a tabela
             queues.forEach(renderQueueRow);
@@ -4071,6 +4286,13 @@ async function reopenTicket() {
             // Preparar dados para enviar
             const updateData = { status: 'attending', on_hold: 0 };
             
+            // Adiciona sessionToken para autenticação
+            if (sessionToken) {
+                updateData.sessionToken = sessionToken;
+            } else {
+                console.warn('[continuePendingTicket] sessionToken não encontrado!');
+            }
+            
             // Se tiver usuário logado, adiciona user_id e queue_id
             if (currentUser && currentUser.id) {
                 updateData.user_id = currentUser.id;
@@ -4080,13 +4302,23 @@ async function reopenTicket() {
                 }
             }
             
+            console.log('[continuePendingTicket] Dados enviados:', updateData, 'currentUser:', currentUser);
+            
             const resp = await fetch(`/api/tickets/${activeTicketId}/status`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updateData)
             });
-            if (!resp.ok) throw new Error('Falha ao continuar atendimento');
+            
+            if (!resp.ok) {
+                const errorData = await resp.json().catch(() => ({}));
+                console.error('[continuePendingTicket] Erro:', resp.status, errorData);
+                throw new Error(errorData.error || 'Falha ao continuar atendimento');
+            }
+            
             await loadChat(activeTicketId); // Recarrega chat e lista com novo estado
+            // Atualiza o contador da aba Atendendo
+            updateAtendendoCounter();
         } catch (e) {
             console.error(e);
             showNotification(e.message || 'Erro desconhecido', 'danger');
@@ -4514,6 +4746,8 @@ async function reopenTicket() {
         }
         persistState();
         await loadTickets();
+        // Atualiza contador Atendendo ao trocar de aba
+        updateAtendendoCounter();
     });
 
     if (navContatos) {
@@ -4530,6 +4764,8 @@ async function reopenTicket() {
             persistState();
             showChatPlaceholder();
             await loadTickets();
+            // Atualiza contador Atendendo ao trocar de aba
+            updateAtendendoCounter();
         });
     }
 
@@ -4547,6 +4783,8 @@ async function reopenTicket() {
             persistState();
             showChatPlaceholder();
             loadTickets();
+            // Atualiza contador Atendendo ao trocar de aba
+            updateAtendendoCounter();
         });
     } else {
         console.warn('[dashboard] Elemento #nav-resolved inexistente - fluxo RESOLVIDOS desabilitado.');
@@ -4590,6 +4828,8 @@ async function reopenTicket() {
             persistState();
             showChatPlaceholder();
             await loadTickets();
+            // Atualiza contador Atendendo ao trocar de aba
+            updateAtendendoCounter();
         });
     }
 
@@ -4606,6 +4846,8 @@ async function reopenTicket() {
             showChatPlaceholder();
             // Aguarda o carregamento para garantir que o ajuste de altura seja aplicado
             await loadTickets();
+            // Atualiza contador Atendendo ao trocar de aba
+            updateAtendendoCounter();
         });
     }
 
@@ -4632,6 +4874,8 @@ async function reopenTicket() {
             persistState();
             showChatPlaceholder();
             loadTickets();
+            // Atualiza o contador imediatamente ao clicar na aba
+            updateAtendendoCounter();
         });
     }
 
@@ -4642,8 +4886,8 @@ async function reopenTicket() {
         
         // Filtra tickets que não pertencem ao usuário atual (exceto admins)
         if (currentUser && currentUser.profile !== 'admin' && currentUser.profile !== 'administrador') {
-            // Se o ticket tem user_id e não é do usuário atual, ignora (exceto se está sendo transferido para ele)
-            if (data.user_id && data.user_id !== currentUser.id && data.status !== 'transferred') {
+            // Se o ticket tem user_id e não é do usuário atual, ignora (exceto se está sendo transferido, aceito ou resolvido por outro)
+            if (data.user_id && data.user_id !== currentUser.id && !['transferred', 'attending', 'resolved'].includes(data.status)) {
                 console.log('[Filter] Ignorando ticket de outro usuário:', data.id);
                 return;
             }
@@ -4690,12 +4934,12 @@ async function reopenTicket() {
         try {
             if (data.status === 'attending') {
                 const ticketEl = ticketListContainer.querySelector(`[data-ticket-id='${data.id}']`);
-                const isViewingPending = currentTicketView === 'pending' || currentTicketStatus === 'pending';
+                const isViewingOnHoldPending = currentTicketView === 'pending'; // Apenas aba PENDENTE (on_hold=1)
                 const localWasPending = ticketEl && ticketEl.getAttribute('data-status') === 'pending';
 
-                // Se estamos na aba PENDENTE e o ticket ainda aparece localmente como pending,
-                // ignoramos a tentativa de promovê-lo para attending no cliente.
-                if (isViewingPending && localWasPending) {
+                // Se estamos na aba PENDENTE (on_hold=1) e o ticket ainda aparece localmente como pending,
+                // ignoramos a tentativa de promovê-lo para attending no cliente (para permitir "Continuar Atendimento").
+                if (isViewingOnHoldPending && localWasPending) {
                     console.info('[dashboard] Ignorando ticket_update -> attending para ticket em PENDENTE enquanto usuário está na aba PENDENTE:', data.id);
                     // Atualiza indicadores, mas não remove o elemento nem fecha o chat.
                     try { refreshTicketIndicators(); } catch (e) { /* ignore */ }
@@ -4777,6 +5021,8 @@ async function reopenTicket() {
             console.warn('Erro no processamento condicional de ticket_update', e);
             loadTickets().catch(e => { console.warn('Erro ao recarregar tickets após ticket_update', e); });
         }
+        // Atualiza o contador da aba Atendendo em tempo real
+        updateAtendendoCounter();
     });
 
     socket.on('new-message', (data) => {
@@ -4789,6 +5035,9 @@ async function reopenTicket() {
             // Scroll para o final do chat
             chatBody.scrollTop = chatBody.scrollHeight;
         }
+        
+        // Atualiza o contador da aba Atendendo em tempo real
+        updateAtendendoCounter();
 
         // Gerencia notificações visuais: se for mensagem de contato e NÃO for o ticket ativo, incrementa contador
         try {
@@ -4819,9 +5068,6 @@ async function reopenTicket() {
                 }
                 
                 if (shouldNotify) {
-                    // Adiciona à dropdown de notificações
-                    addNotificationItem(data);
-                    setNotificationsCount((notificationsCount || 0) + 1);
                     // Mostra notificação desktop e toca som
                     try {
                         const title = data.contact_name ? `${data.contact_name}` : 'Nova mensagem';
@@ -4847,10 +5093,12 @@ async function reopenTicket() {
                 
                 // Atualiza ou cria badge de mensagens não lidas ao lado do protocolo
                 let badgeEl = ticketEl.querySelector('.badge.bg-success.rounded-pill');
+                let newCount = 1;
                 if (badgeEl) {
                     // Badge já existe - incrementa contador
                     const current = Number(badgeEl.textContent || 0) || 0;
-                    badgeEl.textContent = String(current + 1);
+                    newCount = current + 1;
+                    badgeEl.textContent = String(newCount);
                     badgeEl.classList.remove('d-none');
                 } else {
                     // Badge não existe - cria novo ao lado do protocolo
@@ -4865,9 +5113,17 @@ async function reopenTicket() {
                             badgeEl.style.fontSize = '0.65rem';
                             badgeEl.textContent = '1';
                             protocolEl.appendChild(badgeEl);
+                            newCount = 1;
                         }
                     }
                 }
+                // Salva no localStorage
+                try {
+                    const saved = localStorage.getItem('ticketUnreadBadges') || '{}';
+                    const unreadBadges = JSON.parse(saved);
+                    unreadBadges[data.ticket_id] = String(newCount);
+                    localStorage.setItem('ticketUnreadBadges', JSON.stringify(unreadBadges));
+                } catch (e) { console.warn('Erro ao salvar badge no localStorage:', e); }
             }
             
             const localWasPending = ticketEl && ticketEl.getAttribute('data-status') === 'pending';

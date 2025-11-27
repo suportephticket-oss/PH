@@ -54,6 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <p><strong>Contato:</strong> ${ticket.contact_name || 'Não informado'}</p>
                             <p><strong>Número:</strong> ${ticket.contact_number || '-'}</p>
                             <p><strong>Status:</strong> <span class="badge bg-${ticket.status === 'resolved' ? 'success' : ticket.status === 'attending' ? 'primary' : 'warning'}">${ticket.status === 'resolved' ? 'Concluído' : ticket.status === 'attending' ? 'Atendendo' : 'Pendente'}</span></p>
+                            ${ticket.responsible_agent ? `<p><strong>Agente Responsável:</strong> ${ticket.responsible_agent}</p>` : ''}
                 `;
                 
                 if (ticket.has_access) {
@@ -65,9 +66,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             </button>
                     `;
                 } else {
-                    // Não tem acesso - mostra apenas o responsável
+                    // Não tem acesso - mostra mensagem
                     resultHtml += `
-                            <p><strong>Agente Responsável:</strong> ${ticket.responsible_agent || '-'}</p>
                             <hr>
                             <div class="alert alert-info mb-0">
                                 <i class="bi bi-info-circle me-2"></i>Este ticket está sendo atendido por outro agente. Você não tem acesso ao histórico completo.
